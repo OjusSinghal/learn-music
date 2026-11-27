@@ -202,22 +202,59 @@ export class DatasetStorage {
         return true;
     }
 
+    async fetchCustomProfile() {
+        if (typeof fetch !== "function") return null;
+        try {
+            const resp = await fetch(`${this.apiBase}/profile`);
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data && data.templates && data.silenceProfile) {
+                    return data;
+                }
+                if (data && data.profile && data.profile.templates && data.profile.silenceProfile) {
+                    return data.profile;
+                }
+            }
+        } catch (_e) {}
+        return null;
+    }
+
     downloadDatasetZip() {
+        if (
+            typeof window !== "undefined" &&
+            window.LearnMusicAndroid &&
+            typeof window.LearnMusicAndroid.downloadDatasetZip === "function"
+        ) {
+            window.LearnMusicAndroid.downloadDatasetZip(this.instrument);
+            return;
+        }
         if (typeof window !== "undefined" && typeof window.open === "function") {
             window.open(`${this.apiBase}/zip`, "_blank");
         }
     }
 
     exportManifestJson() {
+        const local = this.getLocalManifest();
+        const filename = `${this.instrument}_acoustic_manifest_${new Date().toISOString().slice(0, 10)}.json`;
+        const jsonText = JSON.stringify(local, null, 2);
+
+        if (
+            typeof window !== "undefined" &&
+            window.LearnMusicAndroid &&
+            typeof window.LearnMusicAndroid.exportManifestJson === "function"
+        ) {
+            window.LearnMusicAndroid.exportManifestJson(filename, jsonText);
+            return;
+        }
+
         if (typeof document === "undefined" || typeof Blob === "undefined" || typeof URL === "undefined") {
             return;
         }
-        const local = this.getLocalManifest();
-        const blob = new Blob([JSON.stringify(local, null, 2)], { type: "application/json" });
+        const blob = new Blob([jsonText], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${this.instrument}_acoustic_manifest_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

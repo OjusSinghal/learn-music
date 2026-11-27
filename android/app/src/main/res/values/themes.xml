@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LearnMusic" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/studio_obsidian</item>
+        <item name="android:colorBackground">@color/studio_obsidian</item>
+        <item name="android:statusBarColor">@color/studio_obsidian</item>
+        <item name="android:navigationBarColor">@color/studio_obsidian</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">@color/champagne_gold</item>
+        <item name="colorPrimaryDark">@color/studio_obsidian</item>
+        <item name="colorAccent">@color/calm_sage</item>
+    </style>
+</resources>

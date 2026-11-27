@@ -113,10 +113,20 @@ Both curricula expose identical Level (`1..9`) → Lesson (`4/level`, `36` total
 
 - `GET /api/songs`, `POST /api/songs/save`, `POST /api/parse-midi`
 - **Piano Dataset (`audio_dataset/`)**:
-  - `GET /api/dataset/summary`, `POST /api/dataset/sample`, `GET /api/dataset/zip`, `POST /api/dataset/recalibrate` (`scripts/calibrate_and_benchmark.py`), `POST /api/dataset/reset`
+  - `GET /api/dataset/summary`, `GET /api/dataset/profile`, `POST /api/dataset/sample`, `GET /api/dataset/zip`, `POST /api/dataset/recalibrate` (`scripts/calibrate_and_benchmark.py` / Android `AcousticCalibrator.kt`), `POST /api/dataset/reset`
 - **Ukulele Dataset (`audio_dataset/ukulele/`)**:
-  - `GET /api/dataset/ukulele/summary` — Returns `{ instrument: "ukulele", total_samples, wav_file_count, manifest, dataset_dir }`.
+  - `GET /api/dataset/ukulele/summary`, `GET /api/dataset/ukulele/profile` — Returns summary or saved custom profile JSON.
   - `POST /api/dataset/ukulele/sample` — Writes sanitized `.wav` to `audio_dataset/ukulele/samples/` and updates `audio_dataset/ukulele/manifest.json`.
   - `GET /api/dataset/ukulele/zip` — Streams `ukulele_acoustic_dataset.zip` in memory.
-  - `POST /api/dataset/ukulele/recalibrate` — Returns HTTP `400` if 0 WAVs recorded; otherwise runs `scripts/calibrate_ukulele.py --real-wavs` (`timeout=60s`) and returns `{ success: true, instrument: "ukulele", profile }`.
+  - `POST /api/dataset/ukulele/recalibrate` — Returns HTTP `400` if 0 WAVs recorded; otherwise runs `scripts/calibrate_ukulele.py --real-wavs` (or Android `AcousticCalibrator.kt`) and returns `{ success: true, instrument: "ukulele", profile }`.
   - `POST /api/dataset/ukulele/reset` — Clears ONLY `audio_dataset/ukulele/samples/` and `audio_dataset/ukulele/manifest.json` (never touches Piano WAVs!).
+
+---
+
+## 6. Android Native App Architecture (`android/`, Package `com.ojussinghal.learnmusic`)
+
+- **`android/app/build.gradle.kts` (`syncWebAssets`)**: Copies single-source-of-truth `index.html`, `style.css`, `js/**`, `assets/**`, `songs_data/**`, `samples/**`, and `audio_dataset/calibrated_profile.json` into APK `assets/www/`.
+- **`LocalAppServer.kt` + `AppDataStore.kt`**: Multi-threaded `127.0.0.1:18080` HTTP/1.1 loopback server (with `Range` 206 audio streaming and full `/api/*` parity) providing a W3C Secure Context for ES modules, `AudioWorklet`, `getUserMedia`, and persistent `localStorage`.
+- **`AcousticCalibrator.kt` + `MidiFileParser.kt`**: Pure-Kotlin on-device 8192-FFT Piano/Ukulele calibrator and SMF MIDI parser.
+- **`MainActivity.kt` + `AndroidMidiBridge.kt` + `AndroidJsBridge.kt`**: Hardware-accelerated WebView, `RECORD_AUDIO` permission bridge, Gallery + Camera sheet picker & `.mid`/`.musicxml` file chooser, native `android.media.midi.MidiManager` USB/BLE MIDI bridge (`window.__learnMusicAndroidMidi`), `FileProvider` dataset ZIP/JSON Share sheets, Studio wake lock (`window.LearnMusicAndroid.setKeepScreenOn`), and system Back/Pause lifecycle hooks (`window.__learnMusicHandleBack`, `window.__learnMusicOnAppPause`).
+

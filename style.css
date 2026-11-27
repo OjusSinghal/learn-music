@@ -4766,6 +4766,229 @@ body[data-instrument="ukulele"] .keyboard-section::before {
     }
 }
 
+/* ==========================================================================
+   Android & Touch-First Responsive Conservatory Ergonomics
+   ========================================================================== */
+
+button,
+input[type="range"],
+select {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.piano-keyboard,
+.piano-key,
+.uku-fretboard,
+.uku-fret-cell,
+.uku-open-cell {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.app-header {
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+}
+
+.control-dock {
+    padding-bottom: max(7px, env(safe-area-inset-bottom));
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+}
+
+@media (max-width: 900px) {
+    #viewHome {
+        justify-content: flex-start;
+    }
+
+    .home-shell {
+        margin: 0 auto;
+        padding: 14px 14px 22px;
+        gap: 12px;
+    }
+
+    .app-header {
+        height: auto;
+        min-height: 46px;
+        padding: 6px max(10px, env(safe-area-inset-left)) 6px max(10px, env(safe-area-inset-right));
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .header-left {
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .brand-title {
+        font-size: 13px;
+    }
+
+    .view-nav-pill {
+        padding: 4px 8px;
+        font-size: 11.5px;
+    }
+
+    .gamification-header-pill {
+        padding: 3px 8px;
+        gap: 5px;
+        font-size: 11px;
+    }
+
+    .studio-toolbar {
+        padding: 4px max(10px, env(safe-area-inset-left)) 4px max(10px, env(safe-area-inset-right));
+        gap: 6px 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .studio-toolbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .studio-toolbar-left,
+    .studio-toolbar-right {
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+    }
+
+    .piano-keyboard-wrapper {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        touch-action: pan-x;
+    }
+
+    .piano-keyboard {
+        min-width: 1140px;
+        touch-action: pan-x;
+    }
+
+    .piano-keyboard .piano-key {
+        touch-action: pan-x;
+    }
+
+    .ukulele-fretboard-host {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ukulele-fretboard-host .uku-fretboard,
+    .ukulele-fretboard-host .uku-fret-cell,
+    .ukulele-fretboard-host .uku-open-cell {
+        touch-action: pan-x;
+    }
+
+    .ukulele-fretboard-host .uku-fretboard {
+        min-width: 620px;
+    }
+
+    .control-dock {
+        padding: 4px max(10px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
+        gap: 4px;
+    }
+
+    .dock-main-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 8px;
+        padding-bottom: 2px;
+    }
+
+    .dock-main-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .dock-left,
+    .dock-center,
+    .dock-right {
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+    }
+
+    .modal-card,
+    .trainer-modal-card,
+    .completion-card {
+        width: min(96vw, 720px);
+        max-height: 92dvh;
+    }
+
+    .trainer-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .drawer-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .drawer-header-actions {
+        flex-wrap: wrap;
+    }
+}
+
+/* Short Android Landscape Phones (e.g. 844x390 / 915x412) */
+@media (max-height: 520px) and (orientation: landscape) {
+    .app-header {
+        height: 38px;
+        min-height: 38px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        flex-wrap: nowrap;
+    }
+
+    .studio-toolbar {
+        min-height: 32px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    .main-stage {
+        min-height: 100px;
+    }
+
+    .keyboard-section {
+        height: 104px;
+    }
+
+    .uku-fretboard-header {
+        height: 18px;
+    }
+
+    .uku-open-label {
+        font-size: 10px;
+    }
+
+    .uku-note-marker {
+        width: 17px;
+        height: 17px;
+        font-size: 9.5px;
+    }
+
+    .control-dock {
+        padding-top: 3px;
+        padding-bottom: max(4px, env(safe-area-inset-bottom));
+        gap: 2px;
+    }
+
+    .btn-play {
+        width: 28px;
+        height: 28px;
+        font-size: 11.5px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

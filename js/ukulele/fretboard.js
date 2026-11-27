@@ -387,8 +387,9 @@ export class UkuleleFretboard {
         this.chordBadgeEl = null;
 
         this._pointerPressedCells = new Set();
+        this._activePointerMap = new Map(); // pointerId -> "s:f"
         this._flashTimers = new Map();     // "s:f" -> timeoutId
-        this._boundWindowPointerUp = () => this._releaseAllPointerPresses();
+        this._boundWindowPointerUp = (e) => this._releasePointerPress(e);
         this._isDestroyed = false;
 
         this._ensureDefaultStyles();
@@ -677,8 +678,10 @@ export class UkuleleFretboard {
 
         if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
             window.removeEventListener("pointerup", this._boundWindowPointerUp);
+            window.removeEventListener("pointercancel", this._boundWindowPointerUp);
             window.removeEventListener("mouseup", this._boundWindowPointerUp);
             window.addEventListener("pointerup", this._boundWindowPointerUp);
+            window.addEventListener("pointercancel", this._boundWindowPointerUp);
             window.addEventListener("mouseup", this._boundWindowPointerUp);
         }
     }
@@ -689,7 +692,9 @@ export class UkuleleFretboard {
         const handleDown = (e) => {
             if (e && typeof e.preventDefault === "function") e.preventDefault();
             const key = this._cellKey(stringIdx, fret);
-            if (this._pointerPressedCells.has(key)) return;
+            const pid = e && e.pointerId !== undefined ? e.pointerId : `mouse:${key}`;
+            if (this._activePointerMap.has(pid)) return;
+            this._activePointerMap.set(pid, key);
             this._pointerPressedCells.add(key);
 
             const style = _resolveFingerStyle(null, fret);
@@ -721,27 +726,53 @@ export class UkuleleFretboard {
         });
     }
 
+    _releasePointerPress(e) {
+        if (e && e.pointerId !== undefined && this._activePointerMap.has(e.pointerId)) {
+            const key = this._activePointerMap.get(e.pointerId);
+            this._activePointerMap.delete(e.pointerId);
+            let stillHeld = false;
+            for (const heldKey of this._activePointerMap.values()) {
+                if (heldKey === key) {
+                    stillHeld = true;
+                    break;
+                }
+            }
+            if (!stillHeld) {
+                this._pointerPressedCells.delete(key);
+                this._releaseSingleCellKey(key);
+            }
+            return;
+        }
+        if (!e || e.pointerId === undefined) {
+            this._releaseAllPointerPresses();
+        }
+    }
+
+    _releaseSingleCellKey(key) {
+        const [sStr, fStr] = key.split(":");
+        const stringIdx = Number(sStr);
+        const fret = Number(fStr);
+        const midi = this.tuning[stringIdx].openMidi + fret;
+
+        this.setActiveNote(midi, false, { string: stringIdx, fret });
+
+        const payload = { string: stringIdx, fret };
+        if (typeof this.onNoteRelease === "function") {
+            this.onNoteRelease(midi, payload);
+        }
+        if (typeof this.onKeyRelease === "function" && this.onKeyRelease !== this.onNoteRelease) {
+            this.onKeyRelease(midi, payload);
+        }
+    }
+
     _releaseAllPointerPresses() {
-        if (this._pointerPressedCells.size === 0) return;
+        if (this._pointerPressedCells.size === 0 && this._activePointerMap.size === 0) return;
         const pressed = Array.from(this._pointerPressedCells);
         this._pointerPressedCells.clear();
+        this._activePointerMap.clear();
 
         for (let i = 0; i < pressed.length; i++) {
-            const key = pressed[i];
-            const [sStr, fStr] = key.split(":");
-            const stringIdx = Number(sStr);
-            const fret = Number(fStr);
-            const midi = this.tuning[stringIdx].openMidi + fret;
-
-            this.setActiveNote(midi, false, { string: stringIdx, fret });
-
-            const payload = { string: stringIdx, fret };
-            if (typeof this.onNoteRelease === "function") {
-                this.onNoteRelease(midi, payload);
-            }
-            if (typeof this.onKeyRelease === "function" && this.onKeyRelease !== this.onNoteRelease) {
-                this.onKeyRelease(midi, payload);
-            }
+            this._releaseSingleCellKey(pressed[i]);
         }
     }
 
@@ -1098,6 +1129,7 @@ export class UkuleleFretboard {
         }
         this._flashTimers.clear();
         this._pointerPressedCells.clear();
+        if (this._activePointerMap) this._activePointerMap.clear();
 
         const touched = new Set([
             ...this.activeCells.keys(),
@@ -1122,6 +1154,7 @@ export class UkuleleFretboard {
         this.clearAll();
         if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
             window.removeEventListener("pointerup", this._boundWindowPointerUp);
+            window.removeEventListener("pointercancel", this._boundWindowPointerUp);
             window.removeEventListener("mouseup", this._boundWindowPointerUp);
         }
         this.cellElements.clear();

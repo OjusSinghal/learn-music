@@ -95,6 +95,33 @@ export class PianoKeyboard {
         const keyboardEl = document.createElement("div");
         keyboardEl.className = "piano-keyboard";
         
+        this._activePointers = new Map(); // pointerId -> midi
+        this._pointerCountByMidi = new Map(); // midi -> active pointer count
+
+        const releasePointer = (e) => {
+            const pid = e && e.pointerId !== undefined ? e.pointerId : "mouse";
+            if (!this._activePointers.has(pid)) return;
+            const pressedMidi = this._activePointers.get(pid);
+            this._activePointers.delete(pid);
+            const remaining = Math.max(0, (this._pointerCountByMidi.get(pressedMidi) || 1) - 1);
+            if (remaining > 0) {
+                this._pointerCountByMidi.set(pressedMidi, remaining);
+                return;
+            }
+            this._pointerCountByMidi.delete(pressedMidi);
+            if (this.activeKeys.has(pressedMidi) && this.activeKeys.get(pressedMidi).status === "playing") {
+                this.releaseKey(pressedMidi);
+                if (this.onKeyRelease) this.onKeyRelease(pressedMidi);
+            }
+        };
+
+        this._boundReleasePointer = releasePointer;
+        if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+            window.addEventListener("pointerup", releasePointer);
+            window.addEventListener("pointercancel", releasePointer);
+            window.addEventListener("mouseup", releasePointer);
+        }
+
         let whiteIndex = 0;
         for (let midi = this.startMidi; midi <= this.endMidi; midi++) {
             const info = this.getNoteInfo(midi);
@@ -154,9 +181,14 @@ export class PianoKeyboard {
                 whiteIndex++;
             }
 
-            // Mouse / touch interaction
-            keyEl.addEventListener("mousedown", (e) => {
-                e.preventDefault();
+            // Multi-touch Pointer & Mouse interaction
+            const handlePress = (e) => {
+                if (e && typeof e.preventDefault === "function") e.preventDefault();
+                const pid = e && e.pointerId !== undefined ? e.pointerId : "mouse";
+                if (this._activePointers.has(pid)) return;
+                this._activePointers.set(pid, midi);
+                this._pointerCountByMidi.set(midi, (this._pointerCountByMidi.get(midi) || 0) + 1);
+
                 const currentStyle = this.getDefaultFingerStyle(midi);
                 this.pressKey(midi, currentStyle.primary, "playing", {
                     lightColor: currentStyle.light,
@@ -165,13 +197,12 @@ export class PianoKeyboard {
                     fingerName: currentStyle.name
                 });
                 if (this.onKeyPress) this.onKeyPress(midi);
-            });
+            };
 
-            window.addEventListener("mouseup", () => {
-                if (this.activeKeys.has(midi) && this.activeKeys.get(midi).status === "playing") {
-                    this.releaseKey(midi);
-                    if (this.onKeyRelease) this.onKeyRelease(midi);
-                }
+            keyEl.addEventListener("pointerdown", handlePress);
+            keyEl.addEventListener("mousedown", (e) => {
+                if (typeof PointerEvent !== "undefined") return;
+                handlePress(e);
             });
 
             this.keyElements.set(midi, keyEl);
@@ -179,6 +210,22 @@ export class PianoKeyboard {
         }
 
         this.container.appendChild(keyboardEl);
+    }
+
+    /**
+     * Centers Middle C (C4, MIDI 60) inside horizontally scrollable mobile viewports
+     */
+    scrollToMiddleC() {
+        if (!this.container || typeof this.container.scrollLeft !== "number") return;
+        const maxScroll = (this.container.scrollWidth || 0) - (this.container.clientWidth || 0);
+        if (maxScroll <= 4) return;
+        const middleCEl = this.keyElements.get(60);
+        if (middleCEl && typeof middleCEl.offsetLeft === "number") {
+            const targetLeft = middleCEl.offsetLeft + (middleCEl.offsetWidth || 0) / 2 - this.container.clientWidth / 2;
+            this.container.scrollLeft = Math.max(0, Math.min(maxScroll, targetLeft));
+        } else {
+            this.container.scrollLeft = Math.round(maxScroll * 0.42);
+        }
     }
 
     /**

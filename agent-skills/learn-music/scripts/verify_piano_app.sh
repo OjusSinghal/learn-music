@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/Users/ojus/official/piano-app"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -d "/Users/ojus/official/piano-app" && -f "/Users/ojus/official/piano-app/index.html" ]]; then
+    APP_DIR="/Users/ojus/official/piano-app"
+else
+    APP_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+fi
 SKILL_DIR="${HOME}/.gemini/config/skills/learn-music"
 REPO_SKILL_DIR="$APP_DIR/agent-skills/learn-music"
 JSC="/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+run_js_module() {
+    local script_path="$1"
+    if [[ -x "$JSC" ]]; then
+        "$JSC" -m "$script_path"
+    elif command -v node >/dev/null 2>&1; then
+        node --experimental-default-type=module -e "globalThis.print = (...a) => console.log(...a); await import('file://' + process.argv[1]);" "$script_path"
+    else
+        echo "Error: Neither JavaScriptCore (jsc) nor node is available to validate ES modules." >&2
+        exit 1
+    fi
+}
 
 echo "=== [1/5] Compiling Python files & Auditing Static Aesthetic / DOM / Docs Invariants ==="
 python3 -m py_compile "$APP_DIR/server.py" "$APP_DIR/scripts/calibrate_and_benchmark.py" "$APP_DIR/scripts/calibrate_ukulele.py"
@@ -224,7 +241,9 @@ globalThis.window = {
     innerWidth: 1280,
     innerHeight: 800
 };
-globalThis.navigator = {};
+if (typeof globalThis.navigator === "undefined") {
+    globalThis.navigator = {};
+}
 globalThis.document = {
     body: { dataset: {}, appendChild: () => {} },
     getElementById: () => null,
@@ -254,10 +273,11 @@ globalThis.sampleRate = 48000;
 import { ALL_JS_MODULES } from "./module_list.mjs";
 
 for (const m of ALL_JS_MODULES) {
-    await import(m);
+    await import(m.startsWith("file://") ? m : "file://" + m);
 }
 
-const { PianoApp } = await import("/Users/ojus/official/piano-app/js/app.js");
+const appModPath = ALL_JS_MODULES.find((p) => p.endsWith("/js/app.js"));
+const { PianoApp } = await import(appModPath.startsWith("file://") ? appModPath : "file://" + appModPath);
 const mockApp = {
     activeCurriculumPartId: "l9_4_p3",
     _resolvePartEntry: PianoApp.prototype._resolvePartEntry,
@@ -291,7 +311,10 @@ if (
 
 print(`Loaded all ${ALL_JS_MODULES.length} ES modules & verified Studio sub-bar mutual exclusion cleanly.`);
 EOF
-"$JSC" -m "$TMP_DIR/check_modules.mjs"
+if [[ -x "$JSC" ]]; then
+    sed -i '' 's/"file:\/\/" + //g' "$TMP_DIR/check_modules.mjs" 2>/dev/null || sed -i 's/"file:\/\/" + //g' "$TMP_DIR/check_modules.mjs"
+fi
+run_js_module "$TMP_DIR/check_modules.mjs"
 
 echo "=== [3/5] Running Polyphonic DSP, Evaluator, 8 Songs, Lv 1-9 Curriculum, Backing Split & Gamification Suite ==="
 python3 - "$APP_DIR" "$TMP_DIR/test_data.mjs" << 'PYEOF'
@@ -350,18 +373,23 @@ out_file.write_text(
 )
 PYEOF
 
-cat << 'EOF' > "$TMP_DIR/regression_suite.mjs"
+if [[ -x "$JSC" ]]; then
+    IMPORT_PREFIX="$APP_DIR"
+else
+    IMPORT_PREFIX="file://$APP_DIR"
+fi
+cat << EOF > "$TMP_DIR/regression_suite.mjs"
 import { FIXTURES, CUSTOM_SONGS, AG_MIDI_BYTES } from "./test_data.mjs";
-import { CalibratedPolyphonicDetector } from "/Users/ojus/official/piano-app/js/audio/polyphonic_detector.js";
-import { BackingTrackEngine, VALID_BACKING_STYLES } from "/Users/ojus/official/piano-app/js/audio/backing_track.js";
-import { PianoSynthesizer } from "/Users/ojus/official/piano-app/js/audio/synth.js";
-import { NoteEvaluator } from "/Users/ojus/official/piano-app/js/engine/evaluator.js";
-import { FINGER_PALETTE, PianoFingeringEngine } from "/Users/ojus/official/piano-app/js/engine/fingering.js";
-import { GameEngine } from "/Users/ojus/official/piano-app/js/engine/game.js";
-import { YousicianRenderer } from "/Users/ojus/official/piano-app/js/engine/renderer.js";
-import { SONG_LIBRARY } from "/Users/ojus/official/piano-app/js/songs/library.js";
-import { MidiFileParser } from "/Users/ojus/official/piano-app/js/parser/midi.js";
-import { SheetMusicScanner } from "/Users/ojus/official/piano-app/js/parser/sheet.js";
+import { CalibratedPolyphonicDetector } from "${IMPORT_PREFIX}/js/audio/polyphonic_detector.js";
+import { BackingTrackEngine, VALID_BACKING_STYLES } from "${IMPORT_PREFIX}/js/audio/backing_track.js";
+import { PianoSynthesizer } from "${IMPORT_PREFIX}/js/audio/synth.js";
+import { NoteEvaluator } from "${IMPORT_PREFIX}/js/engine/evaluator.js";
+import { FINGER_PALETTE, PianoFingeringEngine } from "${IMPORT_PREFIX}/js/engine/fingering.js";
+import { GameEngine } from "${IMPORT_PREFIX}/js/engine/game.js";
+import { YousicianRenderer } from "${IMPORT_PREFIX}/js/engine/renderer.js";
+import { SONG_LIBRARY } from "${IMPORT_PREFIX}/js/songs/library.js";
+import { MidiFileParser } from "${IMPORT_PREFIX}/js/parser/midi.js";
+import { SheetMusicScanner } from "${IMPORT_PREFIX}/js/parser/sheet.js";
 import {
     PIANO_CURRICULUM,
     getCurriculumLevels,
@@ -371,15 +399,15 @@ import {
     getNextPart,
     getAllCurriculumParts,
     getCurriculumSongById
-} from "/Users/ojus/official/piano-app/js/curriculum/index.js";
+} from "${IMPORT_PREFIX}/js/curriculum/index.js";
 import {
     ProgressManager,
     PIANIST_RANKS,
     UKULELE_RANKS,
     UKULELE_ACHIEVEMENT_DEFINITIONS
-} from "/Users/ojus/official/piano-app/js/gamification/progress.js";
-import { UkuleleArranger, verifyUkuleleSong } from "/Users/ojus/official/piano-app/js/ukulele/arranger.js";
-import { UKULELE_STRINGS, chordToTabNotes } from "/Users/ojus/official/piano-app/js/ukulele/chords.js";
+} from "${IMPORT_PREFIX}/js/gamification/progress.js";
+import { UkuleleArranger, verifyUkuleleSong } from "${IMPORT_PREFIX}/js/ukulele/arranger.js";
+import { UKULELE_STRINGS, chordToTabNotes } from "${IMPORT_PREFIX}/js/ukulele/chords.js";
 import {
     UKULELE_CURRICULUM,
     getUkuleleCurriculumLevels,
@@ -389,10 +417,12 @@ import {
     getNextUkulelePart,
     getAllUkuleleCurriculumParts,
     getUkuleleCurriculumSongById
-} from "/Users/ojus/official/piano-app/js/ukulele/curriculum.js";
-import { UkuleleTabRenderer } from "/Users/ojus/official/piano-app/js/ukulele/renderer.js";
-import { UkuleleSynthesizer } from "/Users/ojus/official/piano-app/js/audio/ukulele_synth.js";
-import { UkulelePolyphonicDetector } from "/Users/ojus/official/piano-app/js/audio/ukulele_detector.js";
+} from "${IMPORT_PREFIX}/js/ukulele/curriculum.js";
+import { UkuleleTabRenderer } from "${IMPORT_PREFIX}/js/ukulele/renderer.js";
+import { UkuleleSynthesizer } from "${IMPORT_PREFIX}/js/audio/ukulele_synth.js";
+import { UkulelePolyphonicDetector } from "${IMPORT_PREFIX}/js/audio/ukulele_detector.js";
+EOF
+cat << 'EOF' >> "$TMP_DIR/regression_suite.mjs"
 
 // 1. Acoustic Polyphonic WAV Replay Smoke Test
 const det = new CalibratedPolyphonicDetector({ sampleRate: 48000 });
@@ -1386,7 +1416,7 @@ if (pmUku.getSongProgress("wise_men_say").bestAccuracy !== 91 || pmPianoReload.g
 }
 print("PASS ProgressManager Piano vs Ukulele Isolation & Ukulele Ranks verification.");
 EOF
-"$JSC" -m "$TMP_DIR/regression_suite.mjs"
+run_js_module "$TMP_DIR/regression_suite.mjs"
 
 echo "=== [4/5] Checking Local HTTP Server & Concurrent ES-Module Fetch (if running on :8080) ==="
 python3 - << 'PYEOF'
@@ -1461,7 +1491,9 @@ newest_code_mtime = newest_code.stat().st_mtime
 readme_path = app_dir / "README.md"
 readme_mtime = readme_path.stat().st_mtime if readme_path.exists() else 0.0
 
-skill_docs = [skill_dir / "SKILL.md", *skill_dir.glob("references/*.md")]
+has_global_skill = skill_dir.exists()
+active_skill_dir = skill_dir if has_global_skill else repo_skill_dir
+skill_docs = [active_skill_dir / "SKILL.md", *active_skill_dir.glob("references/*.md")]
 skill_docs = [p for p in skill_docs if p.exists()]
 newest_skill_mtime = max((p.stat().st_mtime for p in skill_docs), default=0.0)
 
@@ -1470,11 +1502,11 @@ errors = []
 if newest_code_mtime - readme_mtime > 2.0:
     errors.append(
         f"README.md is older than modified source file '{newest_code.relative_to(app_dir)}'. "
-        f"Update /Users/ojus/official/piano-app/README.md to reflect your changes."
+        f"Update README.md to reflect your changes."
     )
 if newest_code_mtime - newest_skill_mtime > 2.0:
     errors.append(
-        f"Global skill docs (~/.gemini/config/skills/learn-music/) are older than "
+        f"Skill docs ({active_skill_dir}) are older than "
         f"modified source file '{newest_code.relative_to(app_dir)}'. "
         f"Update SKILL.md and/or references/*.md to reflect your changes."
     )
@@ -1494,37 +1526,32 @@ def collect_tree(root: Path):
             out[str(rel)] = p
     return out
 
-if not skill_dir.exists():
-    errors.append(f"Missing global skill directory: {skill_dir}")
-elif not repo_skill_dir.exists():
-    errors.append(
-        f"Missing repo skill mirror directory: {repo_skill_dir}. "
-        f"Sync with: rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' {skill_dir}/ {repo_skill_dir}/"
-    )
+if not repo_skill_dir.exists():
+    errors.append(f"Missing repo skill mirror directory: {repo_skill_dir}.")
 else:
-    # Ensure no stray ignored artifacts inside repo mirror
     for stray in sorted(repo_skill_dir.rglob("*")):
         if stray.name in IGNORED_NAMES:
             errors.append(f"Stray artifact inside repo skill mirror: {stray.relative_to(app_dir)}")
 
-    global_files = collect_tree(skill_dir)
     repo_files = collect_tree(repo_skill_dir)
-    global_keys = set(global_files.keys())
-    repo_keys = set(repo_files.keys())
+    if has_global_skill:
+        global_files = collect_tree(skill_dir)
+        global_keys = set(global_files.keys())
+        repo_keys = set(repo_files.keys())
 
-    missing_in_repo = sorted(global_keys - repo_keys)
-    extra_in_repo = sorted(repo_keys - global_keys)
-    if missing_in_repo:
-        errors.append(f"Files missing in {repo_skill_dir}: {missing_in_repo}")
-    if extra_in_repo:
-        errors.append(f"Extra/out-of-sync files in {repo_skill_dir}: {extra_in_repo}")
+        missing_in_repo = sorted(global_keys - repo_keys)
+        extra_in_repo = sorted(repo_keys - global_keys)
+        if missing_in_repo:
+            errors.append(f"Files missing in {repo_skill_dir}: {missing_in_repo}")
+        if extra_in_repo:
+            errors.append(f"Extra/out-of-sync files in {repo_skill_dir}: {extra_in_repo}")
 
-    for rel in sorted(global_keys & repo_keys):
-        if global_files[rel].read_bytes() != repo_files[rel].read_bytes():
-            errors.append(
-                f"Skill mirror byte mismatch on '{rel}' between {skill_dir} and {repo_skill_dir}. "
-                f"Sync with: rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' {skill_dir}/ {repo_skill_dir}/"
-            )
+        for rel in sorted(global_keys & repo_keys):
+            if global_files[rel].read_bytes() != repo_files[rel].read_bytes():
+                errors.append(
+                    f"Skill mirror byte mismatch on '{rel}' between {skill_dir} and {repo_skill_dir}. "
+                    f"Sync with: rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' {skill_dir}/ {repo_skill_dir}/"
+                )
 
     repo_verify = repo_skill_dir / "scripts" / "verify_piano_app.sh"
     if repo_verify.exists() and not os.access(repo_verify, os.X_OK):
@@ -1535,10 +1562,16 @@ if errors:
         print("DOC SYNC ERROR:", err)
     sys.exit(1)
 
-print(
-    f"PASS: README.md, global skill (~/.gemini/config/skills/learn-music/), "
-    f"and repo mirror (agent-skills/learn-music/, {len(repo_files)} files byte-identical) are in sync."
-)
+if has_global_skill:
+    print(
+        f"PASS: README.md, global skill (~/.gemini/config/skills/learn-music/), "
+        f"and repo mirror (agent-skills/learn-music/, {len(repo_files)} files byte-identical) are in sync."
+    )
+else:
+    print(
+        f"PASS: README.md and repo skill (agent-skills/learn-music/, {len(repo_files)} files) are in sync "
+        f"(global ~/.gemini/config/skills/learn-music not present in this environment)."
+    )
 PYEOF
 
 echo "=== ALL PIANO APP VERIFICATION CHECKS PASSED ==="

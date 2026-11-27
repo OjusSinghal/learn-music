@@ -16,9 +16,10 @@ A zero-dependency, real-time interactive **Piano & Ukulele** conservatory and pl
 9. [Practice Modes, Polyphonic Scoring, Finger Colors & Visual Engine](#9-practice-modes-polyphonic-scoring-finger-colors--visual-engine)
 10. [Score Ingestion & OMR Pipeline](#10-score-ingestion--omr-pipeline)
 11. [Project Structure & HTTP API Reference](#11-project-structure--http-api-reference)
-12. [Running, Calibrating & Operating the App](#12-running-calibrating--operating-the-app)
-13. [Antigravity Global Skill & Living Documentation Policy](#13-antigravity-global-skill--living-documentation-policy)
-14. [Current Boundaries & Future Roadmap](#14-current-boundaries--future-roadmap)
+12. [Android App Architecture, Building & APK Packaging (`android/`)](#12-android-app-architecture-building--apk-packaging-android)
+13. [Running, Calibrating & Operating the App](#13-running-calibrating--operating-the-app)
+14. [Antigravity Global Skill & Living Documentation Policy](#14-antigravity-global-skill--living-documentation-policy)
+15. [Current Boundaries & Future Roadmap](#15-current-boundaries--future-roadmap)
 
 ---
 
@@ -318,34 +319,93 @@ piano-app/
 │   ├── samples/                      # 28 Piano WAV recordings (NEVER delete or overwrite)
 │   ├── manifest.json & calibrated_profile.json
 │   └── ukulele/                      # Isolated Ukulele WAV dataset, manifest & calibrated_profile.json
+├── android/                          # Native Android Kotlin/Gradle app (API 26–35, single-source-of-truth APK)
+│   ├── gradlew & settings.gradle.kts # Gradle 8.8 wrapper + Google/Maven Central build config
+│   └── app/
+│       ├── build.gradle.kts          # Automatic `syncWebAssets` task bundling live repo web app into `assets/www/`
+│       └── src/
+│           ├── main/
+│           │   ├── AndroidManifest.xml
+│           │   ├── res/              # Studio Obsidian theme, adaptive vector icon, FileProvider, loopback network config
+│           │   └── java/com/ojussinghal/learnmusic/
+│           │       ├── MainActivity.kt         # Hardware-accelerated WebView, mic permission, file/camera picker, back nav
+│           │       ├── LocalAppServer.kt       # Multi-threaded 127.0.0.1 HTTP/1.1 + Range + full REST API parity
+│           │       ├── AppDataStore.kt         # Persistent on-device songs & isolated Piano/Ukulele datasets + ZIP export
+│           │       ├── AcousticCalibrator.kt   # Pure-Kotlin 8192-FFT Blackman-Harris Piano & Ukulele calibrator
+│           │       ├── MidiFileParser.kt       # Pure-Kotlin SMF parser + 61-key clamping (`/api/parse-midi`)
+│           │       ├── AndroidMidiBridge.kt    # Native `android.media.midi.MidiManager` USB-C/OTG & BLE MIDI bridge
+│           │       └── AndroidJsBridge.kt      # `window.LearnMusicAndroid` bridge (wake lock, Share/Save ZIP & JSON, MIDI)
+│           └── test/java/com/ojussinghal/learnmusic/
+│               ├── LocalAppServerTest.kt       # Concurrent HTTP, songs, Range WAV, ZIP, recalibration & isolation tests
+│               ├── AcousticCalibratorTest.kt   # 8192-FFT calibration tests on real Piano WAVs & synthetic Ukulele WAVs
+│               └── MidiFileParserTest.kt       # SMF parser & native MIDI byte-stream parser tests
 ├── samples/                          # Sample `.mid` and `.musicxml` import fixtures
 └── songs_data/                       # Server-persisted repertoire & imported Song JSON files
 ```
 
-### Local Server Endpoints (`server.py` — `ThreadingTCPServer`, `request_queue_size = 128`)
+### Local Server Endpoints (`server.py` & Android `LocalAppServer.kt`)
 - **Songs & MIDI**: `GET /api/songs`, `POST /api/songs/save`, `POST /api/parse-midi`.
-- **Piano Acoustic Dataset (`audio_dataset/`)**: `GET /api/dataset/summary`, `POST /api/dataset/sample`, `GET /api/dataset/zip`, `POST /api/dataset/recalibrate`, `POST /api/dataset/reset`.
+- **Piano Acoustic Dataset (`audio_dataset/`)**: `GET /api/dataset/summary`, `GET /api/dataset/profile`, `POST /api/dataset/sample`, `GET /api/dataset/zip`, `POST /api/dataset/recalibrate`, `POST /api/dataset/reset`.
 - **Ukulele Acoustic Dataset (`audio_dataset/ukulele/`, 100% isolated from Piano)**:
-  - `GET  /api/dataset/ukulele/summary`
+  - `GET  /api/dataset/ukulele/summary` & `GET /api/dataset/ukulele/profile`
   - `POST /api/dataset/ukulele/sample`
   - `GET  /api/dataset/ukulele/zip` (`ukulele_acoustic_dataset.zip`)
-  - `POST /api/dataset/ukulele/recalibrate` (executes `scripts/calibrate_ukulele.py --real-wavs`; returns HTTP `400` if 0 WAVs recorded)
+  - `POST /api/dataset/ukulele/recalibrate` (executes `scripts/calibrate_ukulele.py --real-wavs` on desktop or `AcousticCalibrator.kt` on Android; returns HTTP `400` if 0 WAVs recorded)
   - `POST /api/dataset/ukulele/reset` (clears ONLY `audio_dataset/ukulele/`)
 
 ---
 
-## 12. Running, Calibrating & Operating the App
+## 12. Android App Architecture, Building & APK Packaging (`android/`)
+
+The repository includes a full-featured native Android application (`com.ojussinghal.learnmusic`, `minSdk 26` / Android 8.0 through `targetSdk 35` / Android 15) under [`android/`](./android/) that supports **100% of web features completely offline** (with optional internet access for Gemini Vision OMR) using the exact same single-source-of-truth web codebase:
+
+- **Single-Source-of-Truth Packaging**: Gradle's `syncWebAssets` task automatically bundles `index.html`, `style.css`, all `36` ES modules under `js/`, `assets/`, `songs_data/`, `samples/`, and `audio_dataset/calibrated_profile.json` into APK `assets/www/` at build time — zero code duplication and zero npm bundler dependencies.
+- **Embedded Secure-Context Server (`LocalAppServer.kt`)**: Runs a multi-threaded `127.0.0.1:18080` HTTP/1.1 loopback server inside the APK so Chromium WebView gets a full W3C Secure Context (`<script type="module">`, `AudioWorklet`, `getUserMedia`, HTTP `Range` WAV audio playback, and stable persistent `localStorage`) plus 100% `/api/*` REST parity with `server.py`.
+- **On-Device Acoustic Calibration (`AcousticCalibrator.kt`)**: Pure-Kotlin 4096-window Blackman-Harris -> 8192-point Radix-2 FFT calibration engine for both **61-key Piano** (10-harmonic templates) and **High-G/Low-G Ukulele** (8-harmonic nylon templates), persisting recalibrated profiles to internal app storage and auto-hydrating them into `PianoMicrophone` on launch.
+- **Native Hardware & Platform Integrations**:
+  - **Acoustic Microphone**: Runtime `RECORD_AUDIO` permission flow + `WebChromeClient.onPermissionRequest` granting `RESOURCE_AUDIO_CAPTURE`.
+  - **USB-C/OTG & Bluetooth MIDI (`AndroidMidiBridge.kt`)**: Native `android.media.midi.MidiManager` streaming zero-latency Note On/Off events directly into `MidiInputManager`.
+  - **Multi-Touch On-Screen Instruments**: Per-pointer `PointerEvent` tracking on both `PianoKeyboard` (61 keys with smooth horizontal scroll + Middle C auto-centering on phones) and `UkuleleFretboard` (4×12 neck), plus Android portrait/landscape phone & tablet responsive layouts and display cutout safe-area handling.
+  - **Sheet Music Camera + File Picker**: Native `onShowFileChooser` supporting Gallery + live Camera photo capture for Sheet Music OMR, plus `.mid`/`.midi` and `.musicxml`/`.xml` file selection.
+  - **Native Dataset Export & Share**: `FileProvider` + Android Share/Save sheet for `.zip` WAV bundles and `.json` manifests via `window.LearnMusicAndroid`.
+  - **Practice Ergonomics**: Keep-screen-on wake lock while in Studio, system Back button/gesture navigation (`Data Trainer` / `Import` / `Completion` → `Home` → exit), and automatic voice pause on app background.
+
+### Building & Testing the Android APK
+```bash
+cd android
+# Run all Kotlin JVM unit & embedded-server HTTP integration tests
+./gradlew testDebugUnitTest
+
+# Sync web assets and build an installable debug-signed APK
+./gradlew assembleDebug
+# Output APK: android/app/build/outputs/apk/debug/learn-music-debug.apk
+
+# Build an R8-minified, release-signed APK (via env vars or gitignored android/keystore.properties)
+LEARN_MUSIC_KEYSTORE_PATH=/path/to/release.jks \
+LEARN_MUSIC_KEYSTORE_PASSWORD=*** \
+LEARN_MUSIC_KEY_ALIAS=learnmusic \
+LEARN_MUSIC_KEY_PASSWORD=*** \
+./gradlew assembleRelease
+# Output APK: android/app/build/outputs/apk/release/learn-music-release.apk
+
+# Install onto a connected Android device via ADB
+adb install -r app/build/outputs/apk/release/learn-music-release.apk
+```
+
+---
+
+## 13. Running, Calibrating & Operating the App
 
 - **GitHub Repository**: [`https://github.com/OjusSinghal/learn-music`](https://github.com/OjusSinghal/learn-music) (`git@github.com:OjusSinghal/learn-music.git`)
 
-### 12.1 Start the Local Server
+### 13.1 Start the Local Server
 ```bash
 cd /Users/ojus/official/piano-app
 python3 server.py 8080
 ```
 Open **`http://localhost:8080`**, plug in **headphones**, and switch seamlessly between **Piano** and **Ukulele** in the top bar.
 
-### 12.2 Offline Calibration & Benchmark Suites
+### 13.2 Offline Calibration & Benchmark Suites
 ```bash
 # Piano 61-key calibration & LOOCV benchmark (real 28 WAVs in audio_dataset/samples/)
 python3 /Users/ojus/official/piano-app/scripts/calibrate_and_benchmark.py
@@ -357,7 +417,7 @@ python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py --synthetic-
 python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py
 ```
 
-### 12.3 Studio Controls & Keyboard Shortcuts
+### 13.3 Studio Controls & Keyboard Shortcuts
 - **`Piano | Ukulele`** *(top header)*: Hot-swaps instrument across Home, Learn, Songs, Studio, Microphone DSP, and Data Trainer.
 - **`Space` / `←` `→` / `Escape`**: Play/Pause, Seek `±3s`, Close Modals.
 - **`L` / `R`**: Toggle `Left`/`Right` Hands (Piano) or `Chords`/`Melody` lanes (Ukulele).
@@ -366,7 +426,7 @@ python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py
 
 ---
 
-## 13. Antigravity Global Skill & Living Documentation Policy
+## 14. Antigravity Global Skill & Living Documentation Policy
 
 A dedicated Antigravity/Jetski development skill (`learn-music`) for maintaining, calibrating, and extending this application is maintained in **two byte-identical synchronized locations**:
 - **Global Jetski Skill**: `~/.gemini/config/skills/learn-music/`
@@ -380,16 +440,16 @@ rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' \
 ```
 
 ### Automated 5-Stage Verification Suite (`verify_piano_app.sh`)
-Validates Python compilation (`server.py`, `calibrate_and_benchmark.py`, `calibrate_ukulele.py`), `ThreadingTCPServer(q=128)`, zero harsh red/alert invariants across all `38` files, `163/163` DOM ID bindings, `.app-header`/`.studio-toolbar`/2-row `.control-dock` layout, all **`36` ES modules** + Studio sub-bar mutual exclusion in JavaScriptCore, `6/6` Piano WAV fixtures, all **`116` Piano pieces (`8,525` notes)**, all **`8` Ukulele-arranged songs + `108` Ukulele curriculum parts (`9,090` notes)**, `UkulelePolyphonicDetector` single-note/tuner/strum DSP, Piano↔Ukulele hot-swap + unison `F` chord + headphone split, dual `ProgressManager` isolation, concurrent `:8080` HTTP routes (incl. `/api/dataset/ukulele/summary`), and **`README.md` + Global Skill + Repo `agent-skills/` byte-for-byte mirror sync**:
+Validates Python compilation (`server.py`, `calibrate_and_benchmark.py`, `calibrate_ukulele.py`), `ThreadingTCPServer(q=128)`, zero harsh red/alert invariants across all `38` files, `163/163` DOM ID bindings, `.app-header`/`.studio-toolbar`/2-row `.control-dock` layout, all **`36` ES modules** + Studio sub-bar mutual exclusion (JavaScriptCore on macOS or Node.js fallback on Linux), `6/6` Piano WAV fixtures, all **`116` Piano pieces (`8,525` notes)**, all **`8` Ukulele-arranged songs + `108` Ukulele curriculum parts (`9,090` notes)**, `UkulelePolyphonicDetector` single-note/tuner/strum DSP, Piano↔Ukulele hot-swap + unison `F` chord + headphone split, dual `ProgressManager` isolation, concurrent `:8080` HTTP routes (incl. `/api/dataset/ukulele/summary`), and **`README.md` + Global Skill + Repo `agent-skills/` byte-for-byte mirror sync**:
 ```bash
 bash ~/.gemini/config/skills/learn-music/scripts/verify_piano_app.sh
 # Or directly from the repo mirror:
-bash /Users/ojus/official/piano-app/agent-skills/learn-music/scripts/verify_piano_app.sh
+bash agent-skills/learn-music/scripts/verify_piano_app.sh
 ```
 
 ---
 
-## 14. Current Boundaries & Future Roadmap
+## 15. Current Boundaries & Future Roadmap
 
 | Area | Current State | Next-Step Enhancement |
 | :--- | :--- | :--- |

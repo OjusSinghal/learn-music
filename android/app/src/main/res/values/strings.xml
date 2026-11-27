@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Learn Music</string>
+    <string name="file_chooser_title">Select Sheet Music, MIDI, or MusicXML</string>
+    <string name="export_share_title">Export Acoustic Dataset</string>
+</resources>

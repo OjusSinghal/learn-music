@@ -22,6 +22,7 @@ import { MusicXmlParser } from "./parser/musicxml.js";
 import { SheetMusicScanner } from "./parser/sheet.js";
 import { SongStorage } from "./songs/storage.js";
 import { SoundCollectionTrainer } from "./trainer/trainer.js";
+import { DatasetStorage } from "./trainer/storage.js";
 import {
     ProgressManager,
     UKULELE_RANKS,
@@ -440,6 +441,8 @@ export class PianoApp {
 
         if (typeof window !== "undefined") {
             window.showAppToast = (msg, tone) => this.showToast(msg, tone);
+            window.__learnMusicHandleBack = () => this.handleNativeBack();
+            window.__learnMusicOnAppPause = () => this.handleAppPause();
         }
 
         this.init();
@@ -484,9 +487,66 @@ export class PianoApp {
         // Fetch server-persisted songs from songs_data/ and deduplicate cleanly
         await this.loadServerSongs();
 
+        // Hydrate any device/server recalibrated acoustic profiles (Piano & Ukulele)
+        this._hydrateCustomCalibrationProfiles();
+
         // Preload first song into Studio so Free Studio is immediately ready
         if (this.songs.length > 0) {
             this.loadSongById(this.songs[0].id);
+        }
+    }
+
+    async _hydrateCustomCalibrationProfiles() {
+        try {
+            for (const inst of ["piano", "ukulele"]) {
+                const store = new DatasetStorage(inst);
+                const profile = await store.fetchCustomProfile();
+                if (profile && this.mic && typeof this.mic.reloadCalibrationProfile === "function") {
+                    this.mic.reloadCalibrationProfile(profile, inst);
+                }
+            }
+        } catch (_err) {}
+    }
+
+    _syncNativeKeepScreenOn(active) {
+        try {
+            if (
+                typeof window !== "undefined" &&
+                window.LearnMusicAndroid &&
+                typeof window.LearnMusicAndroid.setKeepScreenOn === "function"
+            ) {
+                window.LearnMusicAndroid.setKeepScreenOn(Boolean(active));
+            }
+        } catch (_err) {}
+    }
+
+    handleNativeBack() {
+        if (this.trainer && this.trainer.isOpen) {
+            this.trainer.close();
+            return true;
+        }
+        if (this.dom.completionModal && this.dom.completionModal.style.display !== "none") {
+            this.closeCompletionModal();
+            return true;
+        }
+        if (this.dom.importModal && this.dom.importModal.style.display !== "none") {
+            this.closeModal();
+            return true;
+        }
+        if (this.currentView && this.currentView !== "home") {
+            this.switchView("home");
+            return true;
+        }
+        return false;
+    }
+
+    handleAppPause() {
+        if (this.game && this.game.isPlaying) {
+            this.game.pause();
+            if (this.dom.playIcon) this.dom.playIcon.textContent = "▶";
+        }
+        if (this.trainer && this.trainer.isRecording) {
+            this.trainer.abortRecording();
         }
     }
 
@@ -870,11 +930,16 @@ export class PianoApp {
             this.dom.studioRightHints.style.display = inStudio ? "inline-flex" : "none";
         }
 
+        this._syncNativeKeepScreenOn(inStudio);
+
         if (target === "home") {
+            if (this.dom.viewHome) this.dom.viewHome.scrollTop = 0;
             this.refreshHomeView();
         } else if (target === "learn") {
+            if (this.dom.viewLearn) this.dom.viewLearn.scrollTop = 0;
             this.renderLearnView();
         } else if (target === "songs") {
+            if (this.dom.viewSongs) this.dom.viewSongs.scrollTop = 0;
             this.renderSongsView();
         } else if (target === "studio") {
             this.updateStudioCurriculumBar();
@@ -884,6 +949,9 @@ export class PianoApp {
                 requestAnimationFrame(() => {
                     this.renderer.resize();
                     this.game.renderCurrentFrame();
+                    if (!this.isUkuleleMode() && this.pianoKeyboard && typeof this.pianoKeyboard.scrollToMiddleC === "function") {
+                        this.pianoKeyboard.scrollToMiddleC();
+                    }
                 });
             }
         }

@@ -819,6 +819,43 @@ class PianoAppRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"Failed to generate ukulele ZIP: {str(e)}"}).encode("utf-8"))
                 return
 
+        elif parsed.path == "/api/dataset/profile":
+            profile_path = os.path.join(DATASET_DIR, "calibrated_profile.json")
+            if os.path.exists(profile_path):
+                try:
+                    with open(profile_path, "r", encoding="utf-8") as f:
+                        profile_data = json.load(f)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(profile_data).encode("utf-8"))
+                    return
+                except Exception:
+                    pass
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "No calibrated piano profile available"}).encode("utf-8"))
+            return
+
+        elif parsed.path == "/api/dataset/ukulele/profile":
+            if os.path.exists(UKULELE_PROFILE_PATH):
+                try:
+                    with open(UKULELE_PROFILE_PATH, "r", encoding="utf-8") as f:
+                        profile_data = json.load(f)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(profile_data).encode("utf-8"))
+                    return
+                except Exception:
+                    pass
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "No calibrated ukulele profile available"}).encode("utf-8"))
+            return
+
         super().do_GET()
 
     def do_POST(self):

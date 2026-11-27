@@ -101,6 +101,16 @@ Read [Architecture, Schemas & API Reference](./references/architecture-and-forma
 2. Start as daemon: `cd /Users/ojus/official/piano-app && python3 server.py 8080`.
 3. Verify HTTP `200` via Python `urllib.request` on `http://127.0.0.1:8080/`.
 
+### 5. Building & Testing the Android App (`android/`)
+The native Kotlin Android app (`com.ojussinghal.learnmusic`, `minSdk 26`, `targetSdk 35`) packages the exact repo web app via Gradle's `syncWebAssets` task and runs an embedded `127.0.0.1:18080` server (`LocalAppServer.kt`), on-device 8192-FFT calibrator (`AcousticCalibrator.kt`), native USB/BLE MIDI bridge (`AndroidMidiBridge.kt`), and native `FileProvider` share/camera/file pickers (`MainActivity.kt`):
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug
+# Debug APK: android/app/build/outputs/apk/debug/learn-music-debug.apk
+# Release APK (R8 minified + signed via LEARN_MUSIC_KEYSTORE_* env vars or gitignored android/keystore.properties):
+./gradlew assembleRelease
+```
+
 ---
 
 ## Mandatory Definition of Done (Run Before Completing Any Task)

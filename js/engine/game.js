@@ -14,6 +14,14 @@ import { NoteEvaluator } from "./evaluator.js";
 import { PianoFingeringEngine } from "./fingering.js";
 import { BackingTrackEngine } from "../audio/backing_track.js";
 
+const UKULELE_FINGER_STYLES = {
+    0: { finger: 0, diagramLabel: "O", name: "Open",   primary: "#48A870", light: "#74C695", dark: "#2F8554", text: "#FFFFFF" },
+    1: { finger: 1, diagramLabel: "1", name: "Index",  primary: "#F0C830", light: "#F8E080", dark: "#C89D14", text: "#FFFFFF" },
+    2: { finger: 2, diagramLabel: "2", name: "Middle", primary: "#6848F8", light: "#B0A0F8", dark: "#4C2FD9", text: "#FFFFFF" },
+    3: { finger: 3, diagramLabel: "3", name: "Ring",   primary: "#4090F8", light: "#98D8F8", dark: "#256EE0", text: "#FFFFFF" },
+    4: { finger: 4, diagramLabel: "4", name: "Pinky",  primary: "#E86078", light: "#F0A8B8", dark: "#C93B56", text: "#FFFFFF" }
+};
+
 function _nowMs() {
     return typeof performance !== "undefined" && typeof performance.now === "function"
         ? performance.now()
@@ -35,6 +43,7 @@ function _cancelFrame(id) {
 
 export class GameEngine {
     constructor(renderer, keyboard, synth, options = {}) {
+        this.instrument = options.instrument === "ukulele" ? "ukulele" : "piano";
         this.renderer = renderer || null;
         this.keyboard = keyboard || null;
         this.synth = synth || null;
@@ -113,6 +122,128 @@ export class GameEngine {
         this.onWaitStatusChange = options.onWaitStatusChange || null;
         this.onHandChange = options.onHandChange || null;
         this.onSongComplete = options.onSongComplete || null;
+    }
+
+    _isUkuleleMode() {
+        return this.instrument === "ukulele" || Boolean(this.song && this.song.instrument === "ukulele");
+    }
+
+    _resolveNoteFingerStyle(note) {
+        if (!note) {
+            return this._isUkuleleMode()
+                ? UKULELE_FINGER_STYLES[0]
+                : PianoFingeringEngine.getFingerStyle(1);
+        }
+        if (this._isUkuleleMode() || Number.isInteger(note.string)) {
+            let f = 0;
+            if (note.fret === 0 || note.finger === 0) {
+                f = 0;
+            } else if (Number.isInteger(note.finger) && note.finger >= 1 && note.finger <= 4) {
+                f = note.finger;
+            } else if (Number.isInteger(note.fret) && note.fret > 0) {
+                f = ((note.fret - 1) % 4) + 1;
+            }
+            const base = UKULELE_FINGER_STYLES[f] || UKULELE_FINGER_STYLES[0];
+            if (typeof note.fingerColor === "string" && note.fingerColor.startsWith("#")) {
+                return {
+                    ...base,
+                    primary: note.fingerColor,
+                    diagramLabel: note.fingerLabel || base.diagramLabel
+                };
+            }
+            return base;
+        }
+        return PianoFingeringEngine.getNoteFingerStyle(note);
+    }
+
+    /**
+     * Hot-swaps the active instrument context (Piano <-> Ukulele) while preserving
+     * the single shared BackingTrackEngine, headphone audio split, tempo, mode,
+     * metronome, and `onSongComplete` lifecycle.
+     */
+    setInstrumentContext({ instrument, renderer, keyboard, synth } = {}) {
+        if (this.isPlaying) {
+            this.pause();
+        } else {
+            if (this.backingTrack) {
+                this.backingTrack.stopAll();
+            }
+            if (this.synth && typeof this.synth.stopAllNotes === "function") {
+                this.synth.stopAllNotes();
+            }
+        }
+
+        if (this.keyboard) {
+            if (typeof this.keyboard.clearAll === "function") this.keyboard.clearAll();
+            if (typeof this.keyboard.clearTargetHighlights === "function") this.keyboard.clearTargetHighlights();
+        }
+        if (this.renderer && typeof this.renderer.resetEffects === "function") {
+            this.renderer.resetEffects();
+        }
+
+        if (instrument === "piano" || instrument === "ukulele") {
+            this.instrument = instrument;
+        }
+        if (renderer !== undefined) {
+            this.renderer = renderer || null;
+        }
+        if (keyboard !== undefined) {
+            this.keyboard = keyboard || null;
+        }
+        if (synth !== undefined) {
+            this.synth = synth || null;
+        }
+
+        if (this.keyboard) {
+            this.keyboard.getFingerStyleForMidi = (midi) => this._resolveFingerStyleForMidi(midi);
+            if (typeof this.keyboard.clearAll === "function") this.keyboard.clearAll();
+        }
+
+        // Keep the single shared BackingTrackEngine bound to the active synth & AudioContext
+        if (this.backingTrack) {
+            this.backingTrack.synth = this.synth;
+            if (this.synth) {
+                if (this.synth.ctx) {
+                    this.backingTrack.attachContext(this.synth.ctx);
+                } else if (this.backingTrack.ctx && typeof this.synth.attachContext === "function") {
+                    this.synth.attachContext(this.backingTrack.ctx);
+                }
+                this.synth.backingTrack = this.backingTrack;
+            }
+            this.backingTrack.setEnabled(this.backingAudioEnabled);
+            this.backingTrack.setVolume(this.backingVolume);
+        }
+
+        if (this.renderer) {
+            if (typeof this.renderer.setActiveHands === "function") {
+                this.renderer.setActiveHands(this.activeHands);
+            }
+            if (typeof this.renderer.resetEffects === "function") {
+                this.renderer.resetEffects();
+            }
+        }
+
+        this.updateKeyboardTargetHighlights();
+        this.renderCurrentFrame();
+
+        return {
+            instrument: this.instrument,
+            renderer: this.renderer,
+            keyboard: this.keyboard,
+            synth: this.synth
+        };
+    }
+
+    /**
+     * Forwards live chromatic/string tuner readout to active renderer & fretboard view.
+     */
+    setTunerState(tunerData) {
+        if (this.renderer && typeof this.renderer.setTunerState === "function") {
+            this.renderer.setTunerState(tunerData);
+        }
+        if (this.keyboard && typeof this.keyboard.setTunerState === "function") {
+            this.keyboard.setTunerState(tunerData);
+        }
     }
 
     setMode(mode) {
@@ -263,6 +394,13 @@ export class GameEngine {
         if (this.synth && typeof this.synth.stopAllNotes === "function") {
             this.synth.stopAllNotes();
         }
+        if (this.renderer && typeof this.renderer.resetEffects === "function") {
+            this.renderer.resetEffects();
+        }
+
+        if (options && (options.instrument === "piano" || options.instrument === "ukulele")) {
+            this.instrument = options.instrument;
+        }
 
         const handsUpdated = Boolean(options && options.activeHands);
         if (handsUpdated) {
@@ -274,7 +412,13 @@ export class GameEngine {
             }
         }
 
-        this.song = PianoFingeringEngine.ensureSongFingering(JSON.parse(JSON.stringify(song)));
+        const clonedSong = JSON.parse(JSON.stringify(song));
+        if (clonedSong && clonedSong.instrument === "ukulele") {
+            // Preserve exact ukulele tab/fret/finger/chord metadata without piano fingering rewrite
+            this.song = clonedSong;
+        } else {
+            this.song = PianoFingeringEngine.ensureSongFingering(clonedSong);
+        }
         this.baseBpm = this.song.bpm || 100;
 
         const leadIn = this.computeLeadIn(this.song);
@@ -300,7 +444,8 @@ export class GameEngine {
         }
 
         if (this.keyboard) {
-            this.keyboard.clearAll();
+            if (typeof this.keyboard.clearAll === "function") this.keyboard.clearAll();
+            if (typeof this.keyboard.clearTargetHighlights === "function") this.keyboard.clearTargetHighlights();
         }
 
         // Calculate total song duration
@@ -513,6 +658,9 @@ export class GameEngine {
         this.evaluator._refreshWaitTargets();
 
         this.isWaiting = false;
+        if (this.renderer && typeof this.renderer.clearWrongHints === "function") {
+            this.renderer.clearWrongHints();
+        }
         if (this.keyboard) {
             this.keyboard.clearAll();
         }
@@ -527,6 +675,9 @@ export class GameEngine {
         this._songCompletedFired = false;
         this.maxStreak = 0;
         this.scheduledNoteIndices.clear();
+        if (this.renderer && typeof this.renderer.resetEffects === "function") {
+            this.renderer.resetEffects();
+        }
         this.seek(this.startTime || 0);
         this.evaluator.reset();
         this.updateKeyboardTargetHighlights();
@@ -581,13 +732,24 @@ export class GameEngine {
                 if (!this.keyboard) return;
 
                 if (res.isCorrect) {
-                    const fStyle = res.note ? PianoFingeringEngine.getNoteFingerStyle(res.note) : null;
+                    const fStyle = res.note ? this._resolveNoteFingerStyle(res.note) : null;
+                    const ukuMeta = res.note ? {
+                        string: Number.isInteger(res.note.string) ? res.note.string : undefined,
+                        fret: Number.isInteger(res.note.fret) ? res.note.fret : undefined,
+                        finger: Number.isInteger(res.note.finger) ? res.note.finger : (fStyle ? fStyle.finger : undefined),
+                        fingerColor: res.note.fingerColor || (fStyle ? fStyle.primary : undefined),
+                        chordSymbol: res.note.chordSymbol || undefined,
+                        strumDir: res.note.strumDir || undefined,
+                        lane: res.note.lane || undefined
+                    } : {};
                     this.keyboard.pressKey(midi, "#52B788", "correct", fStyle ? {
+                        ...ukuMeta,
                         lightColor: "#84D9AE",
                         darkColor: "#358762",
                         fingerLabel: fStyle.diagramLabel,
                         fingerName: fStyle.name
                     } : {
+                        ...ukuMeta,
                         lightColor: "#84D9AE",
                         darkColor: "#358762"
                     });
@@ -660,10 +822,13 @@ export class GameEngine {
         if (!this.renderer || typeof this.renderer.addHitFeedback !== "function") return;
         const pitch = note ? note.pitch : 60;
         const isTreble = this._resolveFeedbackStaff(pitch, note);
+        const hand = note ? NoteEvaluator.getNoteHand(note) : (isTreble ? "right" : "left");
         this.renderer.addHitFeedback(status, color, isTreble, {
             kind: status === "PERFECT" ? "perfect" : "good",
             note,
             pitch,
+            string: note && Number.isInteger(note.string) ? note.string : null,
+            hand,
             delta
         });
     }
@@ -673,10 +838,13 @@ export class GameEngine {
         if (!this.renderer || typeof this.renderer.addHitFeedback !== "function") return;
         const isTreble = this._resolveFeedbackStaff(pitch, note);
         const isUnplayedPass = note !== null && note.state === "wrong";
+        const hand = note ? NoteEvaluator.getNoteHand(note) : (isTreble ? "right" : "left");
         this.renderer.addHitFeedback(status, color, isTreble, {
             kind: isUnplayedPass ? "missed" : "wrong",
             note,
-            pitch
+            pitch,
+            string: note && Number.isInteger(note.string) ? note.string : null,
+            hand
         });
     }
 
@@ -711,26 +879,34 @@ export class GameEngine {
             }
         }
         if (bestNote && bestDist <= 2.5) {
-            return PianoFingeringEngine.getNoteFingerStyle(bestNote);
+            return this._resolveNoteFingerStyle(bestNote);
         }
         return null;
     }
 
     _highlightTargetNoteOnKeyboard(note) {
         if (!this.keyboard || !note || this.keyboard.activeKeys.has(note.pitch)) return;
-        const style = PianoFingeringEngine.getNoteFingerStyle(note);
+        const style = this._resolveNoteFingerStyle(note);
         this.keyboard.pressKey(note.pitch, style.primary, "preview", {
             lightColor: style.light,
             darkColor: style.dark,
             finger: style.finger,
             fingerLabel: style.diagramLabel,
             fingerName: style.name,
-            hand: NoteEvaluator.getNoteHand(note)
+            fingerColor: note.fingerColor || style.primary,
+            hand: NoteEvaluator.getNoteHand(note),
+            string: Number.isInteger(note.string) ? note.string : undefined,
+            fret: Number.isInteger(note.fret) ? note.fret : undefined,
+            chordSymbol: note.chordSymbol || undefined,
+            strumDir: note.strumDir || undefined,
+            lane: note.lane || undefined
         });
     }
 
     updateKeyboardTargetHighlights() {
         if (!this.keyboard || !this.evaluator || !this.evaluator.notes) return;
+
+        const supportsTargetNotes = typeof this.keyboard.setTargetNotes === "function";
 
         for (const [midi, state] of this.keyboard.activeKeys.entries()) {
             if (state.status === "preview") {
@@ -739,11 +915,16 @@ export class GameEngine {
         }
 
         if (!this.activeHands.left && !this.activeHands.right) {
+            if (supportsTargetNotes) {
+                this.keyboard.setTargetNotes([]);
+            }
             return;
         }
 
+        const targetNotes = [];
+
         // During empty count-in beats before the active hand's entrance, preview the opening active note/chord
-        // on the 61-key keyboard in each note's exact Finger Color so the player can position their fingers.
+        // in each note's exact Finger Color so the player can position their fingers.
         const activeFirstTime = this._getActiveFirstNoteTime();
         if (this.currentTime < activeFirstTime) {
             this.evaluator.notes.forEach((n) => {
@@ -752,16 +933,13 @@ export class GameEngine {
                     this.evaluator.isNoteHandEnabled(n) &&
                     Math.abs(n.time - activeFirstTime) <= 0.055
                 ) {
-                    this._highlightTargetNoteOnKeyboard(n);
+                    targetNotes.push(n);
                 }
             });
-            return;
-        }
-
-        if (this.mode === "wait" && this.evaluator.currentWaitChord && this.evaluator.currentWaitChord.length > 0) {
+        } else if (this.mode === "wait" && this.evaluator.currentWaitChord && this.evaluator.currentWaitChord.length > 0) {
             this.evaluator.currentWaitChord.forEach((n) => {
                 if (n.state === "pending" && this.evaluator.isNoteHandEnabled(n)) {
-                    this._highlightTargetNoteOnKeyboard(n);
+                    targetNotes.push(n);
                 }
             });
         } else {
@@ -772,10 +950,36 @@ export class GameEngine {
                     this.currentTime <= n.time + (n.duration || 0.35)
                 ) {
                     if (this.isPlaying || n.state === "pending") {
-                        this._highlightTargetNoteOnKeyboard(n);
+                        targetNotes.push(n);
                     }
                 }
             });
+
+            // For fretboard views, smoothly preview the next upcoming onset group when between notes/strums
+            if (supportsTargetNotes && targetNotes.length === 0) {
+                const nextPending = this.evaluator.notes.find(
+                    (n) => n.state === "pending" && this.evaluator.isNoteHandEnabled(n) && n.time >= this.currentTime - 0.05
+                );
+                if (nextPending) {
+                    this.evaluator.notes.forEach((n) => {
+                        if (
+                            n.state === "pending" &&
+                            this.evaluator.isNoteHandEnabled(n) &&
+                            Math.abs(n.time - nextPending.time) <= 0.055
+                        ) {
+                            targetNotes.push(n);
+                        }
+                    });
+                }
+            }
+        }
+
+        if (supportsTargetNotes) {
+            this.keyboard.setTargetNotes(targetNotes);
+        } else {
+            for (let i = 0; i < targetNotes.length; i++) {
+                this._highlightTargetNoteOnKeyboard(targetNotes[i]);
+            }
         }
     }
 
@@ -869,6 +1073,79 @@ export class GameEngine {
         }
     }
 
+    /**
+     * Dispatches Play-Along guide notes for Piano or Ukulele.
+     * In Ukulele mode, simultaneous chord notes (`chordGroupId` or onset within 15ms) are batched into
+     * an authentic arpeggiated `synth.playStrum()` call; single notes pass `{ string, fret }`.
+     */
+    _playGuideNotesBatch(notesToPlay, isWaitPreview = false) {
+        if (!Array.isArray(notesToPlay) || notesToPlay.length === 0 || !this.synth) return;
+
+        if (!this._isUkuleleMode()) {
+            if (typeof this.synth.playNote !== "function") return;
+            for (let i = 0; i < notesToPlay.length; i++) {
+                const note = notesToPlay[i];
+                this.synth.playNote(note.pitch, isWaitPreview ? 0.6 : note.duration, 0.85);
+            }
+            return;
+        }
+
+        // Group simultaneous ukulele chord notes by chordGroupId or <= 15ms onset proximity
+        const groups = [];
+        const byGroupId = new Map();
+
+        for (let i = 0; i < notesToPlay.length; i++) {
+            const note = notesToPlay[i];
+            if (note.chordGroupId) {
+                let grp = byGroupId.get(note.chordGroupId);
+                if (!grp) {
+                    grp = [];
+                    byGroupId.set(note.chordGroupId, grp);
+                    groups.push(grp);
+                }
+                grp.push(note);
+            } else {
+                const matchGrp = groups.find(
+                    (g) => g.length > 0 && !g[0].chordGroupId && Math.abs(g[0].time - note.time) <= 0.015
+                );
+                if (matchGrp) {
+                    matchGrp.push(note);
+                } else {
+                    groups.push([note]);
+                }
+            }
+        }
+
+        const hasStrum = typeof this.synth.playStrum === "function";
+        const hasNote = typeof this.synth.playNote === "function";
+
+        for (let g = 0; g < groups.length; g++) {
+            const grp = groups[g];
+            if (grp.length > 1 && hasStrum) {
+                let maxDur = isWaitPreview ? 0.65 : 0.45;
+                let strumDir = "down";
+                for (let j = 0; j < grp.length; j++) {
+                    if (!isWaitPreview && typeof grp[j].duration === "number" && grp[j].duration > maxDur) {
+                        maxDur = grp[j].duration;
+                    }
+                    if (grp[j].strumDir === "up" || grp[j].strumDir === "down") {
+                        strumDir = grp[j].strumDir;
+                    }
+                }
+                this.synth.playStrum(grp, maxDur, strumDir, { velocity: 0.85 });
+            } else if (hasNote) {
+                for (let j = 0; j < grp.length; j++) {
+                    const note = grp[j];
+                    const dur = isWaitPreview ? 0.6 : note.duration;
+                    this.synth.playNote(note.pitch, dur, 0.85, {
+                        string: Number.isInteger(note.string) ? note.string : undefined,
+                        fret: Number.isInteger(note.fret) ? note.fret : undefined
+                    });
+                }
+            }
+        }
+    }
+
     processAudioAndEvents() {
         if (!this.song) return;
 
@@ -880,7 +1157,7 @@ export class GameEngine {
         const minBeat = -(this.leadInBeats || 0);
 
         // 1. Headphone Song Background Accompaniment (ALWAYS plays when isPlaying && !isWaiting && backingAudioEnabled,
-        //    completely independent of whether Play-Along piano score notes are ON or OFF!)
+        //    completely independent of whether Play-Along guide notes are ON or OFF!)
         if (this.backingTrack) {
             if (this.isPlaying && !this.isWaiting && this.backingAudioEnabled) {
                 if (!this.backingTrack.ctx && this.synth) {
@@ -918,30 +1195,38 @@ export class GameEngine {
             }
         }
 
-        // 3. Play-Along Piano Score Notes ONLY (`referenceAudioEnabled` / #btnPlayAlongToggle)
-        if (this.referenceAudioEnabled && this.synth && typeof this.synth.playNote === "function") {
+        // 3. Play-Along Guide Notes ONLY (`referenceAudioEnabled` / #btnPlayAlongToggle)
+        if (this.referenceAudioEnabled && this.synth && (typeof this.synth.playNote === "function" || typeof this.synth.playStrum === "function")) {
             if (this.mode === "wait" && this.isWaiting) {
                 // Preview pending enabled-hand notes in the frozen chord once
                 const waitChord = this.evaluator.currentWaitChord || [];
+                const previewBatch = [];
                 waitChord.forEach((note) => {
                     if (!this.scheduledNoteIndices.has(note.index)) {
                         this.scheduledNoteIndices.add(note.index);
                         if (this.evaluator.isNoteHandEnabled(note)) {
-                            this.synth.playNote(note.pitch, 0.6, 0.85);
+                            previewBatch.push(note);
                         }
                     }
                 });
+                if (previewBatch.length > 0) {
+                    this._playGuideNotesBatch(previewBatch, true);
+                }
             } else if (this.isPlaying && !this.isWaiting) {
+                const dueBatch = [];
                 this.evaluator.notes.forEach((note, index) => {
                     if (!this.scheduledNoteIndices.has(index)) {
                         if (this.currentTime >= note.time) {
                             this.scheduledNoteIndices.add(index);
                             if (this.evaluator.isNoteHandEnabled(note)) {
-                                this.synth.playNote(note.pitch, note.duration, 0.85);
+                                dueBatch.push(note);
                             }
                         }
                     }
                 });
+                if (dueBatch.length > 0) {
+                    this._playGuideNotesBatch(dueBatch, false);
+                }
             }
         }
     }

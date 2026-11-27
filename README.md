@@ -1,19 +1,19 @@
-# 🎹 Yousician Piano (Personal 61-Key Conservatory & Studio Edition) — Architecture & Developer Guide
+# 🎹🎸 Yousician Piano & Ukulele (Personal Conservatory & Studio Edition) — Architecture & Developer Guide
 
-A zero-dependency, real-time interactive piano conservatory and play-along web application engineered to replicate and extend **Yousician Piano** — custom-aligned and acoustically calibrated for a **5-octave, 61-key keyboard (`C2` to `C7`, MIDI `36..96`)** and **stereo headphone practice**, featuring a **Minimal Conservatory Home Page**, a complete **Levels 1–9 Structured Curriculum (`36` lessons · `108` playable solo/chord/combined parts · `7,923` notes)**, an **Always-On Stereo Headphone Backing Band**, **Gamified Mastery Progression**, and **8 Repertoire Play-Alongs (`602` notes — `116` total verified pieces / `8,525` total verified notes)**.
+A zero-dependency, real-time interactive **Piano & Ukulele** conservatory and play-along web application engineered to replicate and extend **Yousician** — supporting both a **5-octave, 61-key Piano (`C2` to `C7`, MIDI `36..96`)** and a **Standard High-G Re-Entrant Ukulele (`G4–C4–E4–A4`, frets `0..12`, MIDI `60..81`, with Low-G `G3` DSP extensibility)** with seamless global `Piano | Ukulele` switching, **stereo headphone backing accompaniment**, **Levels 1–9 Structured Curricula for both instruments (`72` lessons · `216` playable Solo/Chords/Combined parts · `17,013` curriculum notes)**, **Universal Song Play-Alongs (`8` built-in/server songs + MIDI/MusicXML/Gemini OMR/QuickComposer imports automatically arranged for both instruments)**, **Isolated Gamified Mastery Progression**, and **Calibrated Polyphonic Acoustic DSP + 28-Step Data Trainers** for both Piano and Ukulele.
 
 ---
 
 ## 📑 Table of Contents
-1. [System Overview & Architecture](#1-system-overview--architecture)
-2. [Minimal Conservatory Home, Multi-View Navigation & Gamification](#2-minimal-conservatory-home-multi-view-navigation--gamification)
-3. [Structured Piano Curriculum (Levels 1–9 · Chords & Solo Play)](#3-structured-piano-curriculum-levels-19--chords--solo-play)
-4. [Stereo Headphone Backing Band vs. Play-Along Piano Toggle](#4-stereo-headphone-backing-band-vs-play-along-piano-toggle)
-5. [61-Key Keyboard Alignment & Pitch Mapping](#5-61-key-keyboard-alignment--pitch-mapping)
-6. [Calibrated Polyphonic Audio DSP & Note Detection Engine](#6-calibrated-polyphonic-audio-dsp--note-detection-engine)
-7. [Quantitative Benchmark Results (28 Acoustic Recordings)](#7-quantitative-benchmark-results-28-acoustic-recordings)
-8. [28-Step Acoustic Sound Trainer & Live Recalibration](#8-28-step-acoustic-sound-trainer--live-recalibration)
-9. [Practice Modes, Polyphonic Scoring, 5-Finger Colors & Visual Engine](#9-practice-modes-polyphonic-scoring-5-finger-colors--visual-engine)
+1. [System Overview & Multi-Instrument Architecture](#1-system-overview--multi-instrument-architecture)
+2. [Minimal Conservatory Home, `Piano | Ukulele` Switch & Gamification](#2-minimal-conservatory-home-piano--ukulele-switch--gamification)
+3. [Structured Curricula (Levels 1–9 Piano & Levels 1–9 Ukulele)](#3-structured-curricula-levels-19-piano--levels-19-ukulele)
+4. [Ukulele 4-String Tab Canvas, Interactive Fretboard & Universal Song Arranger](#4-ukulele-4-string-tab-canvas-interactive-fretboard--universal-song-arranger)
+5. [Stereo Headphone Backing Band vs. Play-Along Guide Toggle](#5-stereo-headphone-backing-band-vs-play-along-guide-toggle)
+6. [61-Key Piano & High-G Ukulele Pitch / Coordinate Mapping](#6-61-key-piano--high-g-ukulele-pitch--coordinate-mapping)
+7. [Calibrated Polyphonic Audio DSP & Quantitative Benchmarks (Piano + Ukulele)](#7-calibrated-polyphonic-audio-dsp--quantitative-benchmarks-piano--ukulele)
+8. [28-Step Acoustic Data Trainers & Live Recalibration (Piano + Ukulele)](#8-28-step-acoustic-data-trainers--live-recalibration-piano--ukulele)
+9. [Practice Modes, Polyphonic Scoring, Finger Colors & Visual Engine](#9-practice-modes-polyphonic-scoring-finger-colors--visual-engine)
 10. [Score Ingestion & OMR Pipeline](#10-score-ingestion--omr-pipeline)
 11. [Project Structure & HTTP API Reference](#11-project-structure--http-api-reference)
 12. [Running, Calibrating & Operating the App](#12-running-calibrating--operating-the-app)
@@ -22,270 +22,227 @@ A zero-dependency, real-time interactive piano conservatory and play-along web a
 
 ---
 
-## 1. System Overview & Architecture
+## 1. System Overview & Multi-Instrument Architecture
 
-The application runs as a fast, zero-dependency **27-module vanilla ES-module Single Page Application (SPA)** backed by a lightweight pure-stdlib Python 3 HTTP/API server (`server.py`). It combines **HTML5 High-DPI 2D Canvas (60 FPS)**, **Web Audio API (`AudioWorklet` + Stereo Headphone Synthesis)**, **MediaStream API**, and **Web MIDI API**.
+The application runs as a zero-dependency **36-module vanilla ES-module Single Page Application (SPA)** backed by a multi-threaded pure-stdlib Python 3 HTTP/API server (`server.py`, `ThreadingTCPServer`, `request_queue_size = 128`). It combines **HTML5 High-DPI 2D Canvas (60 FPS)**, **Web Audio API (`AudioWorklet` + Stereo Headphone Synthesis + Acoustic Piano & Nylon Ukulele Synthesizers)**, **MediaStream API**, and **Web MIDI API**.
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                     MULTI-VIEW CONSERVATORY NAVIGATION                       │
-│   Home (#viewHome)  │  Learn (Lv 1–9, 108 Parts)  │  Songs  │  Studio        │
-└──────────────────┬──┴─────────────────────────────┴────┬────┴────────────┬───┘
-                   │                                     │                 │
-┌──────────────────▼─────────────────────────────────────▼─────────────────▼───┐
-│                              USER INPUT SOURCES                              │
-│   Acoustic Keyboard (Microphone)    │    Digital Piano (Web MIDI)    │ Mouse │
-└──────────────────┬──────────────────┴────────────────┬───────────────┴───┬───┘
-                   │ Raw Float32 PCM (48 kHz, No AGC)  │ MIDI Note-On      │
-                   ▼                                   │                   │
-┌──────────────────────────────────────────────────────┐                   │
-│       OFF-MAIN-THREAD CAPTURE (AudioWorklet)         │                   │
-│ • 52 Hz Butterworth High-Pass Filter (C2 = 65.41 Hz) │                   │
-│ • PianoCaptureWorkletProcessor (4096 win / 1024 hop) │                   │
-│ • Automatic AnalyserNode fallback (~21.3 ms cadence) │                   │
-└──────────────────┬───────────────────────────────────┘                   │
-                   │ Transferable Float32Array Frame + Expected Score Hints│
-                   ▼                                                       │
-┌──────────────────────────────────────────────────────────────────────────┐
-│        CALIBRATED 61-KEY POLYPHONIC + SCORE-INFORMED DSP ENGINE          │
-│ • 4096 Blackman-Harris Window (-92 dB) → 8192-Point Radix-2 FFT          │
-│ • Calibrated Room Noise Spectral Subtraction (25 Hz bands)               │
-│ • Local Spectral Peak Extraction & Physical Odd-Harmonic Gate            │
-│ • Multiplicative KL-Divergence NMF over 61-Key 10-Harmonic Dictionary    │
-│ • Overtone Excess Filter + Positive Spectral Flux Onset + Sustain Bridge │
-│ • Score-Informed Hypothesis Fusion (Flow & Wait Target Verification)     │
-└──────────────────┬───────────────────────────────────────────────────────┘
-                   │ activeNotes[], onsetNotes[] (Single Notes, Dyads, Chords)
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│            MULTI-VIEW CONSERVATORY NAVIGATION + INSTRUMENT SWITCHER              │
+│  [Piano | Ukulele]  │  Home (#viewHome) │ Learn (Lv 1–9) │ Songs │ Studio        │
+└──────────────────┬──┴───────────────────┴────────────────┴───┬───┴──────────┬────┘
+                   │                                           │              │
+┌──────────────────▼───────────────────────────────────────────▼──────────────▼────┐
+│                               USER INPUT SOURCES                                 │
+│  Acoustic Piano / Ukulele (Mic)   │   Digital Piano (Web MIDI)   │ Mouse / Keys  │
+└──────────────────┬────────────────┴──────────────┬───────────────┴──────────┬────┘
+                   │ Raw Float32 PCM (48 kHz)      │ MIDI Note-On             │
+                   ▼                               │                          │
+┌──────────────────────────────────────────────────┐                          │
+│      OFF-MAIN-THREAD CAPTURE (AudioWorklet)      │                          │
+│ • Instrument-Adaptive Biquad HPF:                │                          │
+│   Piano: 52 Hz | Ukulele High-G: 180 Hz (Low-G: 135 Hz)                     │
+│ • PianoCaptureWorkletProcessor (4096 / 1024 hop) │                          │
+└──────────────────┬───────────────────────────────┘                          │
+                   │ Transferable Float32Array + Expected Score Hints         │
+                   ▼                                                          │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│          DUAL CALIBRATED POLYPHONIC + SCORE-INFORMED DSP ENGINES            │
+│ • Piano (`polyphonic_detector.js`): 8192-FFT + 61-Key KL-NMF + Odd-Harmonic │
+│   Bass Gate + Major-Triad Root Filter + Overtone Excess (`100%` Chord F1)   │
+│ • Ukulele (`ukulele_detector.js`): 8192-FFT + `180/135 Hz` HPF + Flatness   │
+│   Pluck-Click Gate + Nylon KL-NMF + Unison-Resilient Scaling + `98 ms`      │
+│   Strum-Aggregation Window + Sub-Cent `G-C-E-A` Tuner (`100%` Hybrid F1)    │
+└──────────────────┬──────────────────────────────────────────────────────────┘
+                   │ activeNotes[], onsetNotes[], detectedChord, tunerNote
                    ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│             POLYPHONIC NOTE EVALUATOR, GAME ENGINE & GAMIFICATION            │
-│ • Flow Mode: Simultaneous multi-note scoring (±140 ms Perfect / ±280 ms Good)│
-│ • Wait Mode: Chord cluster freeze (`currentWaitChord`), per-note green hits  │
-│ • Independent Hand Practice (`L Left` / `R Right` + Curriculum `targetHands`)│
-│ • `onSongComplete` → `ProgressManager` (0–3 ★, XP, 6 Ranks, Streaks, Badges) │
-└──────────────┬───────────────────────────────────────────┬───────────────────┘
-               │ Render State & Key Highlights             │ Independent Audio Buses
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│             POLYPHONIC EVALUATOR, GAME ENGINE & ISOLATED GAMIFICATION            │
+│ • `GameEngine.setInstrumentContext()` hot-swaps Renderer, Fretboard/Keys & Synth │
+│ • Flow (±140/±280 ms + 95 ms ukulele strum stagger) & Wait Mode (unison-aware)   │
+│ • Lane/Hand Toggles: `L Left / R Right` (Piano) ↔ `L Chords / R Melody` (Ukulele)│
+│ • Dual `ProgressManager`: `yousician_piano_progress_v1` & `..._ukulele_progress_v1`
+└──────────────┬───────────────────────────────────────────┬───────────────────────┘
+               │ Render State & Highlights                 │ Shared AudioContext Buses
                ▼                                           ▼
-┌─────────────────────────────────────────┐ ┌──────────────────────────────────┐
-│   STUDIO OBSIDIAN & IVORY PRESENTATION  │ │   HEADPHONE AUDIO ARCHITECTURE   │
-│ • 60 FPS Retina Canvas & Ledger Lines   │ │ • BackingTrackEngine (ALWAYS ON  │
-│ • Calm Non-Punitive Feedback (Zero Red) │ │   stereo pad, bass & brushes)    │
-│ • Parabolic Note-to-Note 3D Spheres     │ │ • Play-Along Toggle: Mutes/plays │
-│ • Canonical 5-Finger Color DP Engine    │ │   ONLY piano score guide notes!  │
-│ • 61-Key 3D Keyboard + Completion Modal │ │ • Wooden Metronome + Key Synth   │
-└─────────────────────────────────────────┘ └──────────────────────────────────┘
+┌──────────────────────────────────────────┐ ┌─────────────────────────────────────┐
+│   STUDIO OBSIDIAN & IVORY PRESENTATION   │ │     HEADPHONE AUDIO ARCHITECTURE    │
+│ • Piano: Dual Grand Staves + 61-Key 3D   │ │ • BackingTrackEngine (ALWAYS ON     │
+│ • Ukulele: 4-String Tab Lane, Parabolic  │ │   stereo pad, bass & groove)        │
+│   Orb + Dotted Trail, 4×12 Fretboard     │ │ • Play-Along Toggle: Mutes/plays    │
+│ • Calm Non-Punitive Feedback (Zero Red)  │ │   ONLY guide Piano or Ukulele notes │
+│ • `UkuleleArranger`: Converts ANY song   │ │ • `PianoSynthesizer` + Nylon        │
+│   automatically into 4-string tab+chords │ │   `UkuleleSynthesizer` + Metronome  │
+└──────────────────────────────────────────┘ └─────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Minimal Conservatory Home, Multi-View Navigation & Gamification
+## 2. Minimal Conservatory Home, `Piano | Ukulele` Switch & Gamification
 
-### 2.1 Four Seamless Views (`Home` · `Learn` · `Songs` · `Studio`) & Collision-Free Layout
-A dedicated `50px` global `.app-header` holds strictly the brand (`#btnBrandHome` + `61-Key` badge), primary view pills (`Home | Learn | Songs | Studio`), and the gamification status pill (`#headerGamificationPill`: Streak · Rank · XP) across all screens, while Studio-specific controls live inside `#viewStudio`'s own contextual sub-bar (`.studio-toolbar`) and 2-row transport deck (`footer.control-dock`) — guaranteeing zero element overlap across `900px`–`1920px+` viewports:
-1. **Minimal Home Page (`#viewHome` — Default Landing View)**:
-   - **Above-the-Fold Flex Layout**: Uses overflow-safe `margin: auto` flex centering (`200px` hero card min-height) so the entire conservatory landing screen fits cleanly without vertical clipping on `1280×800` and `1440×900` laptop displays.
-   - **Welcome & Mastery Strip**: Displays single-line `61-KEY PERSONAL CONSERVATORY · C2–C7` eyebrow, current **Pianist Rank**, live XP progress bar to the next rank, **Daily Practice Streak**, **Curriculum Completion %** (`X/108 parts`), **Mastery Stars (`★`)**, and a 1-click **`Continue Lesson →`** button that resumes your exact next uncompleted curriculum part.
-   - **Two Primary Hero Cards**:
-     - **Learn (`#heroCardLearn`)** — *Structured Curriculum · Levels 1–9*: Step-by-step conservatory progression pairing Solo & Chords in every lesson.
-     - **Songs (`#heroCardSongs`)** — *Repertoire & Headphone Accompaniment*: Full 61-key repertoire and imported arrangements backed by stereo headphone accompaniment.
-   - **Quick-Utility & Milestones Strip**: Instant access to *Open Free Studio* (clears any active lesson into free repertoire mode), *Import Sheet / MIDI / MusicXML*, *61-Key Acoustic Data Trainer (`0/28`)*, and unlocked conservatory milestone pills.
-2. **Learn View (`#viewLearn` — Levels 1–9 Syllabus)**:
-   - **Zero-Overflow Level `1` → Level `9` Selector Rail (`#levelTabsRail`)**: Uses `repeat(9, minmax(0, 1fr))` on desktop (`repeat(3, minmax(0, 1fr))` at `≤960px`) so all 9 levels fit in one clean row with unclipped titles (*Piano Foundations* through *Virtuoso Mastery*), completion capsules, and star counts.
-   - **Lesson Cards & Multi-Part Rows**: Each level displays 4 expandable lesson cards (`Solo`, `Chords`, `Chords & Solo` focus badges) containing **3 playable parts** (`Part 1: Solo`, `Part 2: Chords`, `Part 3: Combined`). Every part row includes a clickable completion checkmark, `★ ★ ★` rating, part-type badge, key & BPM, best accuracy %, and a **`Practice`** button that launches Studio with `part.targetHands` automatically configured.
-3. **Songs View (`#viewSongs` — Repertoire Play-Alongs)**:
-   - Deduplicated responsive grid (`minmax(min(100%, 310px), 1fr)`) combining `SONG_LIBRARY`, server-persisted `songs_data/*.json` (`/api/songs`), and `localStorage` custom imports, complete with *All* / *Completed* / *In Progress* filter pills, instant title/artist search, clickable manual completion toggles, `+ Import Piece`, and 1-click **`Play Along`**.
-4. **Studio View (`#viewStudio` — Contextual `.studio-toolbar` + 60 FPS Staves + 61-Key Keyboard + 2-Row `.control-dock`)**:
-   - **Contextual Studio Sub-Bar (`.studio-toolbar`)**: Positioned directly above `<main class="main-stage">`, pairing **mutually exclusive piece navigation** on the left (`#studioHeaderControls`, `updateStudioCurriculumBar()`) with acoustic microphone/tuner controls (`.mic-control-bar`) and the 5-finger color legend (`#studioRightHints`) on the right:
-     - *Curriculum Lesson Part Mode (`activeCurriculumPartId` set)*: Shows `#studioCurriculumBar` (`← Learn` · `Lv X · Lesson Y · Part Z/3 — Part Title` · `Next Part →` · `Free Mode` `#btnStudioFreeMode`) while **hiding** `#studioSongSelectWrap` (`Piece` dropdown) and `#btnOpenImport` (`+ Import`).
-     - *Song Play-Along / Free Studio Mode (`activeCurriculumPartId === null`)*: Hides `#studioCurriculumBar` and displays `#studioSongSelectWrap` (`#songSelect` with custom SVG chevron + clean ellipsis up to `410px` width), `+ Import` (`#btnOpenImport`), and `Data Trainer` (`#btnOpenTrainer`).
-   - **Resize-Safe Retina Staves & Scoped Toasts**: `ResizeObserver` + `window` `resize` (`_handleStudioResize()`) automatically redraws `#yousicianCanvas` even while paused, all `61/61` keys (`C2–C7`) remain unclipped without vertical scrolling, and `#appToastContainer` anchors cleanly in the dark margin above `#pianoKeyboard` (`bottom: 216px`) while auto-clearing (`clearToasts()`) across view, piece, and modal transitions.
-   - **2-Row Compact Studio Control Deck (`footer.control-dock`)**: Places the full-width song timeline scrubber (`#timeCurrent` ── `#timelineSlider` ── `#timeTotal`) in `.dock-scrubber-row` above a single-row `.dock-main-row` (`63px` total deck height across `1200px–1920px`, clean 2-row wrap on narrow screens) grouping transport/mode/`L`/`R` hands (`.dock-left`), tempo/presets (`.dock-center`), and `Play-Along` / `Backing` / metronome / piano volume (`.dock-right`).
+### 2.1 Global Instrument Switch & Collision-Free 4-View Layout (`index.html`, `style.css`, `js/app.js`)
+A dedicated `50px` global `.app-header` holds strictly the brand (`#btnBrandHome` with dynamic `61-Key` / `G-C-E-A` badge), primary view pills (`Home | Learn | Songs | Studio`), the sleek obsidian/champagne **`Piano | Ukulele` segmented switcher (`#instrumentSwitcher`: `#btnInstrumentPiano`, `#btnInstrumentUkulele`)** persisted in `localStorage` (`"yousician_active_instrument"`), and the live gamification pill (`#headerGamificationPill`). Studio-specific controls live strictly inside `#viewStudio > .studio-toolbar` and the 2-row `footer.control-dock` (`163/163` matched DOM IDs):
+1. **Minimal Home Page (`#viewHome`)**: Above-the-fold `margin: auto` flex centering with instrument-aware eyebrow (`61-KEY PERSONAL CONSERVATORY · C2–C7` vs `HIGH-G UKULELE CONSERVATORY · G4–C4–E4–A4`), Rank/XP/Streak/Curriculum/Stars mastery strip, 1-click **`Continue Lesson →`**, **Learn** & **Songs** hero cards, quick utilities (*Open Free Studio*, *Import Sheet / MIDI / MusicXML*, *61-Key / Ukulele Acoustic Data Trainer*), and milestone chips.
+2. **Learn View (`#viewLearn`)**: Zero-overflow `repeat(9, minmax(0, 1fr))` Level `1` → Level `9` rail (`#levelTabsRail`), level banner, and expandable 4-lesson × 3-part cards (`Solo`, `Chords`, `Combined`) dynamically bound to either `PIANO_CURRICULUM` (`108` parts) or `UKULELE_CURRICULUM` (`108` parts).
+3. **Songs View (`#viewSongs`)**: Unified deduplicated grid of all **8** built-in & server-persisted songs plus custom imports, with *All* / *Completed* / *In Progress* filters, search, manual checkmarks, and 1-click **`Play Along`**. In Ukulele mode, every song displays `4-String Tab + Chords` + `Headphone Band` and automatically arranges via `UkuleleArranger` on launch.
+4. **Studio View (`#viewStudio`)**:
+   - **Contextual `.studio-toolbar`**: Mutually exclusive `#studioCurriculumBar` (`← Learn` · context · `Next Part →` · `Free Mode`) vs `#studioSongSelectWrap` + `#btnOpenImport`, alongside `Data Trainer`, `.mic-control-bar` (live chromatic/chord tuner + noise gate), and `#studioRightHints` (`Fingers T 1 2 3 4` in Piano ↔ `0 1 2 3 4` in Ukulele).
+   - **Instrument Stage & Bottom Dock**: Reuses `#yousicianCanvas` for `YousicianRenderer` (Piano) vs `UkuleleTabRenderer` (Ukulele) and toggles `.keyboard-section` (`142px`) cleanly between `#pianoKeyboard` (`61` keys) and `#ukuleleFretboard` (`4` strings × `12` frets). `footer.control-dock` keeps the full-width `.dock-scrubber-row` above `.dock-main-row`, relabeling `#btnHandLeft`/`#btnHandRight` dynamically (`Left`/`Right` ↔ `Chords`/`Melody`).
 
-### 2.2 Gamification & Mastery Progression (`js/gamification/progress.js`)
-Persisted automatically in `localStorage` (`"yousician_piano_progress_v1"`, with probe-checked in-memory fallback for headless `jsc`):
-- **Star Thresholds (`0–3 ★`)**:
-  - **`3 ★`**: `accuracy >= 92%`
-  - **`2 ★`**: `accuracy >= 75%`
-  - **`1 ★`**: `accuracy >= 50%` (or completing a piece end-to-end in `Wait` mode)
-- **Cascading & Manual Completion**: Completing a part (`>= 1 ★` or clicking its manual completion toggle) updates `parts[partId]`. Completing all 3 parts of a lesson automatically marks the **Lesson** complete (`+40 XP` milestone bonus), and completing all 4 lessons in a level automatically marks the **Level** complete (`+120 XP` milestone bonus). Players can also click the checkmark on any part, lesson, or song to manually mark/unmark completion.
-- **XP Ledger & 6 Pianist Ranks**: Awards `xpReward × starMultiplier` (`1.0×`–`1.5×`) plus precision/practice bonuses across 6 conservatory ranks:
-  1. **Initiate** (`0 XP`) → 2. **Apprentice** (`250 XP`) → 3. **Lyricist** (`650 XP`) → 4. **Harmonist** (`1,300 XP`) → 5. **Virtuoso** (`2,400 XP`) → 6. **Concert Master** (`4,000+ XP`).
-- **Daily Practice Streak & 8 Achievements**: Tracks consecutive UTC practice days and unlocks 8 conservatory badges (*First Steps*, *Chord Explorer*, *Two-Hand Harmony*, *95%+ Precision*, *Golden Touch*, *Dedicated Pianist*, *Level Complete*, *Concert Repertoire*).
-- **End-of-Piece Completion Modal (`#completionModal`)**: Automatically opens `0.45s` after the final active note finishes (`GameEngine.onSongComplete`), presenting animated SVG stars, accuracy %, `+XP` gained, Perfect/Good/Missed timing breakdown, rank progress bar, newly unlocked badges, and **`Next Part →`** / **`Replay`** / **`Back to Learn | Songs`** actions.
+### 2.2 Isolated Multi-Instrument Gamification (`js/gamification/progress.js`)
+Piano and Ukulele maintain completely isolated `ProgressManager` stores so Level `1..9` mastery, Song stars (e.g., playing *Wise Men Say* on Piano vs Ukulele), Ranks, Achievements, and `Continue Lesson` pointers never collide:
+- **Piano Store**: `localStorage["yousician_piano_progress_v1"]` · `PIANIST_RANKS` (*Initiate → Apprentice → Lyricist → Harmonist → Virtuoso → Concert Master*) · `ACHIEVEMENT_DEFINITIONS`.
+- **Ukulele Store**: `localStorage["yousician_ukulele_progress_v1"]` · `UKULELE_RANKS` (*Open-String Novice → Strum Apprentice → Island Groover → Fretboard Voyager → Chord-Melody Virtuoso → Conservatory Ukulelist*) · `UKULELE_ACHIEVEMENT_DEFINITIONS`.
+- **Shared Mechanics**: Star thresholds (`>=92%` = `3 ★`, `>=75%` = `2 ★`, `>=50%` or Wait completion = `1 ★`), cascading Part → Lesson (`+40 XP`) → Level (`+120 XP`) completion, manual completion toggles, UTC daily streaks, and `#completionModal` triggered by `GameEngine.onSongComplete`.
 
 ---
 
-## 3. Structured Piano Curriculum (Levels 1–9 · Chords & Solo Play)
+## 3. Structured Curricula (Levels 1–9 Piano & Levels 1–9 Ukulele)
 
-Grounded in comparative piano pedagogy research ([`docs/CURRICULUM_RESEARCH.md`](./docs/CURRICULUM_RESEARCH.md) — synthesizing Yousician Levels 1–9, Alfred's Basic Adult All-In-One, Faber Adult Piano Adventures, and ABRSM/RCM Grades 1–6 adapted specifically for a 61-key `C2..C7` keyboard), `js/curriculum/{levels_1_to_4,levels_5_to_9,index}.js` delivers **9 levels · 36 lessons · 108 playable pieces (`7,923` notes · `1,192` same-hand chords)**.
+Both instruments follow the identical **9 Levels × 4 Lessons × 3 Parts (`Part 1: Solo`, `Part 2: Chords`, `Part 3: Combined`) = 108 Playable Parts** conservatory triad with curated headphone `backingStyle` accompaniment.
 
-### 3.1 Unified 3-Part Lesson Triad
-Every single lesson across Levels 1–9 contains **3 distinct 8-to-16 measure pieces** so learners develop melodic sight-reading and harmonic chord comping side-by-side:
-1. **Part 1 (`partType: "solo"`)**: Melodic reading, scalar/interval dexterity, thumb-under crossings, phrasing, or classical/blues solo riffs (`36` solo parts).
-2. **Part 2 (`partType: "chords"`)**: Harmonic dyads, root & inverted triads, slash-chord basslines, Alberti patterns, and 7th/9th groove comping (`36` chord parts).
-3. **Part 3 (`partType: "combined"`)**: Full bimanual capstone piece uniting Part 1's melodic vocabulary with Part 2's harmonic accompaniment over stereo headphone backing music (`36` combined parts).
+### 3.1 Piano Curriculum (`js/curriculum/{index,levels_1_to_4,levels_5_to_9}.js`, `docs/CURRICULUM_RESEARCH.md` — `7,923` Notes, `1,192` Same-Hand Chords)
 
-### 3.2 Levels 1–9 Syllabus Map (`7,923` Verified Curriculum Notes)
+| Level | Title & Grade Tier | Register (`MIDI`) | Keys & Meters | Solo & Chords Skills (`12 Parts/Level`) |
+| :---: | :--- | :---: | :---: | :--- |
+| **1** | **Piano Foundations & RH C Position** | `B3..G4` (`59..67`) | `C` · `4/4` (`72–84 BPM`) | RH `C4–G4` steps, skips & first 2-note harmonic dyads (`1-3`, `1-5`) |
+| **2** | **Left-Hand Bass & Two-Hand Entry** | `C3..G4` (`48..67`) | `C`, `Am` · `4/4`, `3/4` | LH `C3–G3` bass walks, open 5ths, alternating → Beat-1 two-hand entry |
+| **3** | **Primary Chords & Comping Grooves** | `A2..C5` (`45..72`) | `C`, `Am` · `4/4`, `3/4` | Root `C, F, G, Am` triads (`1-3-5` / `5-3-1`), broken chords & comping |
+| **4** | **New Keys (`G`, `F`, `Am`), 8ths & Shifts** | `G2..E5` (`43..76`) | `G`, `F`, `Am`, `C` | Straight 8ths, `F#`/`Bb` black keys, `1-2-3-1-2-3-4-5` thumb-under shifts |
+| **5** | **Inversions, Slash Chords & Ballads** | `F#2..G5` (`42..79`) | `D`, `Em`, `C`, `G` · `4/4`, `6/8` | 1st/2nd triad inversions, stepwise slash basslines (`C/B`, `D/F#`), ballads |
+| **6** | **16th-Note Agility & Classical Alberti Bass** | `E2..A5` (`40..81`) | `C`, `Am`, `G`, `D` · `4/4`, `3/4`, `3/8` | 16th-note runs, Alberti bass (`5-1-3-1`), salon waltz, Baroque imitation |
+| **7** | **Minor Scales, 7th Chords & Soul/Blues** | `D2..C6` (`38..84`) | `Am`, `Dm`, `Em`, `F`, `G` | 4-note `maj7`/`m7`/`dom7` voicings, harmonic minor, 12-bar blues & Neo-Soul |
+| **8** | **Expressive Polyphony & Modulations** | `C2..E6` (`36..88`) | `Bm`, `Bb`, `Eb`, modulations | Romantic `6/8` nocturne, wide broken tenths/octaves, secondary dominants |
+| **9** | **Virtuoso 61-Key Mastery & Capstones** | `C2..C7` (`36..96`) | `C`, `F`, `A`, `D`, `Dm` | Rootless `9th`/`13th` jazz voicings, full `C2..C7` cascades, concert finale |
 
-| Level | Title & Grade Tier | Register (`MIDI`) | Keys & Meters | Solo & Chords Skills (`4 Lessons × 3 Parts = 12 Parts/Level`) | Headphone Backing Styles |
-| :---: | :--- | :---: | :---: | :--- | :--- |
-| **1** | **Piano Foundations & RH C Position** *(Pre-Grade 1)* | `B3..G4` (`59..67`) | `C` · `4/4` (`72–84 BPM`) | RH `C4–G4` (`T..4`) steps, skips, breath rests & first 2-note harmonic dyads (`C4+E4` `1-3`, `C4+G4` `1-5`); `targetHands: RH` | `warm_pad`, `acoustic_pop` |
-| **2** | **Left-Hand Bass & Two-Hand Entry** *(Pre-Grade 1)* | `C3..G4` (`48..67`) | `C`, `Am` · `4/4`, `3/4` (`76–88 BPM`) | LH `C3–G3` (`5..1`) bass walks, open 5th dyads (`5-1`), alternating hands → synchronized Beat-1 two-hand coordination | `warm_pad`, `waltz_chamber`, `acoustic_pop` |
-| **3** | **Primary Chords & Comping Grooves** *(Grade 1)* | `A2..C5` (`45..72`) | `C`, `Am` · `4/4`, `3/4` (`84–98 BPM`) | Root-position `C`, `F`, `G`, `Am` triads (`1-3-5` RH / `5-3-1` LH), broken-chord patterns, LH chord + RH melody & RH comping + LH bass | `acoustic_pop`, `warm_pad`, `waltz_chamber` |
-| **4** | **New Keys (`G`, `F`, `Am`), 8ths & Shifts** *(Grade 1–2)* | `G2..E5` (`43..76`) | `G`, `F`, `Am`, `C` · `4/4`, `3/4`, `2/4` (`88–102 BPM`) | Straight 8th notes, dotted quarters, `F#` & `Bb` black-key topography (zero thumb-on-black-key scalar notes), `1-2-3-1-2-3-4-5` thumb-under shifts | `acoustic_pop`, `classical_strings`, `waltz_chamber` |
-| **5** | **Inversions, Slash Chords & Ballads** *(Grade 2–3)* | `F#2..G5` (`42..79`) | `D`, `Em`, `C`, `G` · `4/4`, `6/8` (`68–100 BPM`) | 1st/2nd triad inversions (`1-2-5`, `5-2-1`) for smooth voice leading, stepwise slash basslines (`C/B–Am7–Am/G–F`, `D/F#`), pop ballad comping | `acoustic_pop`, `warm_pad`, `cinematic_pulse` |
-| **6** | **16th-Note Agility & Classical Alberti Bass** *(Grade 3)* | `E2..A5` (`40..81`) | `C`, `Am`, `G`, `D` · `4/4`, `3/4`, `3/8` (`76–112 BPM`) | 16th-note scalar agility, `4/4` & `3/8` Alberti bass (`5-1-3-1`), `3/4` salon waltz, and two-voice Baroque imitation | `classical_strings`, `waltz_chamber` |
-| **7** | **Minor Scales, 7th Chords & Soul/Blues** *(Grade 4)* | `D2..C6` (`38..84`) | `Am`, `Dm`, `Em`, `F`, `G` · `4/4`, `6/8` (`78–108 BPM`) | 4-note `maj7`/`m7`/`dom7` voicings (`1-2-3-5` / `5-3-2-1`) & guide-tone shells, harmonic minor arpeggios, 12-bar blues riffs & Neo-Soul grooves | `jazz_brushes`, `acoustic_pop`, `cinematic_pulse` |
-| **8** | **Expressive Polyphony & Modulations** *(Grade 4–5)* | `C2..E6` (`36..88`) | `Bm`, `Bb`, `Eb`, `Am→C→D` · `6/8`, `3/4`, `4/4` (`64–104 BPM`) | Romantic `6/8` nocturne in B Minor, wide broken-tenth & octave bass in `Bb` & `Eb` Major, secondary dominants & pivot modulations | `classical_strings`, `waltz_chamber`, `cinematic_pulse` |
-| **9** | **Virtuoso 61-Key Mastery & Capstones** *(Grade 5–6)* | `C2..C7` (`36..96`) | `C`, `F`, `A`, `D`, `Dm` · `4/4`, `6/8`, `3/4` (`88–124 BPM`) | Rootless `9th`/`13th` jazz voicings, full 5-octave `C2..C7` cascades, cinematic `add9`/`maj7` towers, and 16-bar D Major concert finale | `cinematic_pulse`, `jazz_brushes`, `classical_strings` |
+### 3.2 Ukulele Curriculum (`js/ukulele/curriculum.js`, `docs/UKULELE_CURRICULUM.md` — `9,090` Notes, `108` Parts, `uku_*` IDs)
 
-> **Anatomical Chord & Acoustic Low-Interval Invariants**: Across all `1,192` same-hand curriculum chords, Right-Hand ascending pitches strictly map to increasing fingers (`1 < 2 < 3 < 4 < 5`), Left-Hand ascending pitches strictly map to decreasing fingers (`5 > 4 > 3 > 2 > 1`), zero duplicate fingers occur within any simultaneous chord, and close-position 3-note LH triads stay at or above `C3` (`MIDI 48`) so low piano thirds never muddy the headphone backing bass.
+| Level | Theme | Keys & Meters | Core Fret Range & Chords | Signature Skills (`Part 1: Solo`, `Part 2: Chords`, `Part 3: Combined`) |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | **Open Strings & First Single-Finger Chords** | `C`, `Am` · `4/4` (`68–80 BPM`) | Frets `0–3` · `C6`, `C`, `Am`, `C7` | `G–C–E–A` open-string pulse, single-finger pivots, whole/half down-strums |
+| **2** | **C Major Scale & Primary Strumming** | `C`, `Am` · `4/4`, `3/4` | Frets `0–3` · `C`, `F`, `G7`, `Am` | Full octave `C4–C5` scale, `F → G7` index pivot, quarter & `D–D–DU` strum |
+| **3** | **Full G Major, Island Strum & Folk Melodies** | `C`, `G` · `4/4`, `3/4` | Frets `0–5` · `G`, `C`, `Am`, `F`, `D7` | Full `G [0232]`, syncopated Island Strum (`D–DU–UDU`), `F#` in G Major |
+| **4** | **Minor Keys, Syncopated Picking & Pop Grooves** | `Am`, `Dm`, `Em`, `G` | Frets `0–5` · `Dm`, `Em`, `Am`, `C`, `G`, `D` | `Em` staircase (`0432`), natural minor phrasing, dotted-quarter syncopation |
+| **5** | **G & D Major Positions & Arpeggio Fingerpicking** | `D`, `G`, `Em` · `4/4`, `6/8` | Frets `0–5` · `D`, `A`, `A7`, `Bm`, `Em`, `G` | `Bm` partial barre (`4222`), `T–I–M–A` rolling arpeggios, `6/8` ballad sway |
+| **6** | **Movable Shapes, Bb Barre & 8th-Note Leads** | `F`, `Dm`, `D`, `C` | Frets `1–7` · `Bb`, `Gm`, `Cm`, `F#m`, `E7` | `Bb [3211]` partial barre, movable neck shapes, agile 8th-note scalar runs |
+| **7** | **7th Chords, Blues & Jazzy Voicings** | `C`, `Am`, `A`, `G` | Frets `0–7` · `Cmaj7`, `Am7`, `Dm7`, `Fmaj7`, `G7`, `E7` | `ii7–V7–Imaj7` jazz comping, 12-bar ukulele blues, pentatonic blue notes |
+| **8** | **Up-the-Neck Melody, Double-Stops & Campanella** | `C`, `G`, `D`, `F` | **Frets `5–12`** (`C5–A5`) | 5th–12th position clarity, 3rd/6th double-stops, harp-like campanella |
+| **9** | **Chord-Melody Mastery, Modulations & Capstones** | `C`, `D`, `G`, `Eb` | Full `0–12` neck · `Cadd9`, `Gmaj7`, `B7`, slash chords | Top-string chord-melody arranging, secondary dominants, bossa & capstones |
 
 ---
 
-## 4. Stereo Headphone Backing Band vs. Play-Along Piano Toggle
+## 4. Ukulele 4-String Tab Canvas, Interactive Fretboard & Universal Song Arranger
 
-Engineered specifically for **headphone piano play-along**, `js/audio/backing_track.js` (`BackingTrackEngine`), `js/audio/synth.js` (`PianoSynthesizer`), and `js/engine/game.js` (`GameEngine`) enforce a strict two-bus Web Audio split:
+### 4.1 60 FPS Retina 4-String Tab Renderer (`js/ukulele/renderer.js`)
+- Renders a calm **Studio Obsidian & Acoustic Ivory** 4-string horizontal scrolling fretboard deck (`playheadRatio = 0.26`, `pixelsPerSecond = 180 px/s`) with realistic gauge-differentiated strings (`0=A4` thinnest through `2=C4` thickest and `3=G4` re-entrant), left nut tuning badges with live tuning indicator dots, chord symbol headers, vertical strum brackets + `↓`/`↑` direction arrows, below-deck measure indices, finger-colored circular fret pills + duration tails, **bouncing 3D acoustic-ivory sphere + dotted parabolic trajectory trail** (`computeBallPosition`, both past fade & upcoming arc preview), Wait-mode breathing halos, dimmed/blurred muted-lane overlays (`onToggleHand`), and an optional compact top-right **mini live pitch/tuning capsule**.
+- Maintains identical non-punitive feedback to Piano: concentric calm ripples (`#6EE7B7` Perfect, `#E2C98A` Early/Late), deduplicated `10.5px` whisper labels, desaturated missed ghost capsules (`#64748B`), and `380 ms` off-target hollow ghost rings (`#94A3B8`) — **zero harsh reds or banners**.
+
+### 4.2 Interactive 4-String × 12-Fret Horizontal Neck (`js/ukulele/fretboard.js`)
+- Slots cleanly into `.keyboard-section` (`142px`) beside `#pianoKeyboard` as `#ukuleleFretboard` when Ukulele mode is active.
+- Features an active chord badge (`.uku-chord-badge`), proportional 12-TET-blended frets `1..12` with pearl position inlays on frets `3, 5, 7, 10` and double dot on `12`, clickable left nut open-string pills (`A4, E4, C4, G4` with live tuning dots), all `52` pointer/touch-clickable `(string, fret)` cells triggering `UkuleleSynthesizer` + `GameEngine.handleUserInputNotes`, and unison-chord-aware target highlighting (e.g., lighting both `A4` strings simultaneously on `F [2,0,1,0]`).
+
+### 4.3 Universal Song Arranger & 229-Shape Chord Engine (`js/ukulele/chords.js`, `js/ukulele/arranger.js`)
+- **`UKULELE_CHORD_SHAPES`**: `229` curated + enharmonic chord voicings across all 12 roots (major, minor, 7, maj7, m7, sus2/4, dim, aug, add9, slash chords, split bars like `"G → C"`) plus an algorithmic fallback voicer (`voiceUkuleleChord`) and explicit `[G, C, E, A] ↔ tab(0=A..3=G)` coordinate converters.
+- **`UkuleleArranger.arrangeSongForUkulele(pianoSong)`**: Automatically converts **every** built-in `SONG_LIBRARY` track, `songs_data/*.json` track, and imported MIDI / MusicXML / Gemini OMR / QuickComposer piece into a dual-track Ukulele score (`instrument: "ukulele"`):
+  - **Melody (`lane: "melody"`, `hand: "right"`)**: Extracts the top vocal/melody voice, finds optimal octave transposition into `C4..A5` (`MIDI 60..81`), and runs a **2nd-Order Viterbi DP Fretboard Solver** minimizing hand-box shifts while favoring open strings and frets `0..5`.
+  - **Chords (`lane: "chords"`, `hand: "left"`)**: Generates meter- & `backingStyle`-matched 4-string strums from `song.chords` (or `inferChordsFromNotes` when absent), resolves simultaneous same-string fret collisions (`0` collisions across all 8 repertoire songs + all 108 curriculum parts), and tags High-G unison doubles (`chordGroupId`, `isUnisonDouble: true`).
+
+---
+
+## 5. Stereo Headphone Backing Band vs. Play-Along Guide Toggle
+
+Engineered for **headphone play-along** on both Piano and Ukulele, `BackingTrackEngine` (`js/audio/backing_track.js`), `PianoSynthesizer` (`js/audio/synth.js`), `UkuleleSynthesizer` (`js/audio/ukulele_synth.js`), and `GameEngine` (`js/engine/game.js`) share **one `AudioContext`** with a strict two-bus split:
 
 | Audio Control | Engine Property & UI Control | Default | Exact Headphone Behavior |
 | :--- | :--- | :---: | :--- |
-| **Song Backing Music** | `game.backingAudioEnabled` (`#btnBackingToggle` + `#backingVolumeSlider`) | **`ON` (`65%`)** | **ALWAYS plays** whenever the piece is advancing (`isPlaying && !isWaiting`), synthesizing stereo harmonic pads, bass, and studio rhythm synchronized to `bpm × tempoMultiplier`, `timeSignature`, and `chords` — **even when `Play-Along` is turned `OFF`!** |
-| **Play-Along Piano Notes** | `game.referenceAudioEnabled` (`#btnPlayAlongToggle`) | **`ON`** | **Exclusively plays or mutes the piano score guide notes** (`synth.playNote`) crossing the playhead. Turn **`Play-Along OFF`** once you know the notes to play solo piano on your keyboard over the full headphone band! |
+| **Song Backing Music** | `game.backingAudioEnabled` (`#btnBackingToggle` + `#backingVolumeSlider`) | **`ON` (`65%`)** | **ALWAYS plays** while advancing (`isPlaying && !isWaiting`), synthesizing stereo pads, slash-aware bass, and studio grooves (`warm_pad`, `acoustic_pop`, `classical_strings`, `waltz_chamber`, `jazz_brushes`, `cinematic_pulse`) — **even when `Play-Along` is `OFF`!** |
+| **Play-Along Guide Notes** | `game.referenceAudioEnabled` (`#btnPlayAlongToggle`) | **`ON`** | **Exclusively plays or mutes guide score notes** (`PianoSynthesizer.playNote` in Piano; `UkuleleSynthesizer.playStrum` / `playNote` in Ukulele). Turning it `OFF` mutes only the guide instrument while the backing band and wooden metronome play on. |
 
-### Headphone Mix & Synthesis Architecture (`js/audio/backing_track.js`)
-- **Center Piano Clarity Pocket (`220 Hz – 1.4 kHz`)**: Stereo-panned (`±0.46..0.60`) detuned analog/string pads pass through a `160 Hz` high-pass filter and `960–1320 Hz` warm low-pass roll-off (`2800 Hz` master warmth bus), leaving the center frequency image open for your live acoustic or MIDI piano.
-- **Slash-Chord & Sub-Bass Precision (`55 Hz – 190 Hz`, Center Pan `0.0`)**: `parseChordSymbol` supports triads, 7ths, 9ths, `sus2`/`sus4`, `dim`/`m7b5`/`aug`, split-bar changes (`"G → C"`), and explicit **slash-chord bass notes** (`D/F#` → `F#2`, `G/B` → `B2`, `C/G` → `G2`).
-- **Automatic Harmonic Analyzer (`inferChordsFromNotes`)**: Imported MIDI, MusicXML, or QuickComposer scores without explicit chord symbols are analyzed measure-by-measure with diatonic key priors so every custom import automatically receives musical backing accompaniment.
-- **Six Musical Backing Styles**: `"warm_pad"`, `"acoustic_pop"`, `"classical_strings"`, `"waltz_chamber"`, `"jazz_brushes"`, and `"cinematic_pulse"` (with automatic genre/meter resolution for built-in repertoire, e.g., `6/8` ballad cradle on *Wise Men Say* and `3/8`–`3/4` chamber strings on *Für Elise* & *Minuet in G*, plus subtle preparatory harmony during negative count-in beats).
-- **Zero Hanging Voices**: Pausing, freezing on a `Wait`-mode chord (`isWaiting === true`), seeking, restarting, or switching views triggers a click-free `30 ms` exponential release (`stopAll()`, `getActiveVoiceCount() === 0`).
+- **`UkuleleSynthesizer` (`js/audio/ukulele_synth.js`)**: Warm nylon-string synthesis with `14 ms` bandpassed pink-noise pluck transient, damped 1–4 harmonics + `+6¢` attack bloom, `300 Hz` Helmholtz & `520 Hz` top-plate peaking resonators, `3800 Hz` warm LPF, and `14 ms` staggered G→C→E→A / A→E→C→G `playStrum()`.
+- **Zero Hanging Voices**: Pause, Wait-mode chord freeze (`isWaiting === true`), seek, restart, instrument switch, or view switch releases all voices cleanly in `30 ms` (`stopAll()` / `stopAllNotes()`).
 
 ---
 
-## 5. 61-Key Keyboard Alignment & Pitch Mapping
+## 6. 61-Key Piano & High-G Ukulele Pitch / Coordinate Mapping
 
-Every subsystem — visual keyboard, pitch detector, curriculum levels, song library, MIDI/MusicXML/OMR parsers, and the 28-step calibration trainer — is aligned to a standard **5-octave, 61-key keyboard** (`36` white keys + `25` black keys):
+### 6.1 61-Key Piano Span (`MIDI 36..96`, `C2–C7`, `key61 = midi - 35`)
+| Landmark Key | Scientific Note | MIDI | $f_0$ | 61-Key `#` | White Key `#` |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Leftmost Key | `C2` | `36` | `65.41 Hz` | `#1` | `#1` |
+| 2nd C / Tenor A | `C3` / `A3` | `48` / `57` | `130.81` / `220.00 Hz` | `#13` / `#22` | `#8` / `#13` |
+| **Middle C** / **A440** | `C4` / `A4` | `60` / `69` | `261.63` / `440.00 Hz` | `#25` / `#34` | `#15` / `#20` |
+| 4th C / 5th C / Rightmost | `C5` / `C6` / `C7` | `72` / `84` / `96` | `523.25` / `1046.50` / `2093.00 Hz` | `#37` / `#49` / `#61` | `#22` / `#29` / `#36` |
 
-| Landmark Key | Scientific Note | MIDI Note | Fundamental $f_0$ | 61-Key Index (`#1–#61`) | White Key Index (`#1–#36`) | Staff Default |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Leftmost Key** | `C2` | `36` | `65.41 Hz` | **Key #1** | **White Key #1** | Bass |
-| **2nd C** | `C3` | `48` | `130.81 Hz` | **Key #13** | **White Key #8** | Bass |
-| **Tenor A** | `A3` | `57` | `220.00 Hz` | **Key #22** | **White Key #13** | Bass |
-| **Middle C (3rd C)** | `C4` | `60` | `261.63 Hz` | **Key #25** | **White Key #15** | Treble |
-| **Concert Pitch A440** | `A4` | `69` | `440.00 Hz` | **Key #34** | **White Key #20** | Treble |
-| **4th C** | `C5` | `72` | `523.25 Hz` | **Key #37** | **White Key #22** | Treble |
-| **5th C** | `C6` | `84` | `1046.50 Hz` | **Key #49** | **White Key #29** | Treble |
-| **Rightmost Key (6th C)** | `C7` | `96` | `2093.00 Hz` | **Key #61** | **White Key #36** | Treble |
-
-> **Scientific Pitch Notation Note**: Octave numbers increment on **C** (not A). Therefore `C3..B3` all belong to octave 3 (`A3` = Key `#22`), and octave 4 begins at Middle `C4` (`Key #25`), making `A4` (`440 Hz`) Key `#34`. All imported MIDI, MusicXML, and OMR scores automatically octave-fold out-of-bounds notes into `[36, 96]` while preserving pitch class.
-
----
-
-## 6. Calibrated Polyphonic Audio DSP & Note Detection Engine
-
-### 6.1 Why Calibration & Polyphonic Deconvolution Were Needed
-Acoustic profiling of the 28 recorded WAV samples (`audio_dataset/samples/`) revealed three physical characteristics of the 61-key keyboard + room microphone setup:
-1. **Missing Fundamental in Deep Bass (`C2–C3`)**: On `C2` (`65.41 Hz`), the fundamental $h_1$ carries **`0.0%`** of the spectral energy (`[0.00, 0.00, 0.32, 0.41, 0.19, 0.81]`), while `B2` and `C3` concentrate over `80%` of their energy in $h_2$ (`2f_0`). Uncalibrated pitch trackers either miss bass notes or jump up `+1` to `+2` octaves.
-2. **Sharp Sample-Layer Transition (`D4` → `E4`)**: Keys `C3–D4` exhibit strong 2nd-harmonic resonance ($h_2 \approx 0.66\text{–}0.91$), whereas from `E4` (`MIDI 64`) through `C7` (`MIDI 96`), $h_1$ carries **`90%–100%`** of total note energy.
-3. **Polyphonic Harmonic Overlap**: Monophonic time-domain autocorrelation (YIN) can only emit a single pitch period per frame, failing completely (`0/6` exact chord matches) when playing octaves (`C3+C4`), fifths (`C4+G4`), triads (`C4+E4+G4`), or two-hand accompaniment (`B2+B4`).
-
-### 6.2 Six-Stage Hybrid Detection Pipeline (`js/audio/polyphonic_detector.js`)
-1. **Raw Stream + Off-Main-Thread `AudioWorklet` (`js/audio/piano_worklet.js`)**:
-   - Captures raw `Float32` PCM (`echoCancellation: false`, `noiseSuppression: false`, `autoGainControl: false`) filtered by a 2nd-order Butterworth high-pass filter at **$52\text{ Hz}$** ($Q = 0.7$).
-   - `PianoCaptureWorkletProcessor` accumulates `128`-sample render quanta into a lock-free `4096`-sample circular buffer and posts overlapping frames every `1024` samples (`~21.3 ms` at `48 kHz`) via transferable `ArrayBuffer`s so DSP never blocks 60 FPS Canvas rendering.
-2. **Blackman-Harris Windowed `8192`-Point FFT & Spectral Noise Subtraction**:
-   - Applies a 4-term Blackman-Harris window (`-92 dB` sidelobe suppression, eliminating adjacent-semitone skirt leakage) zero-padded to an `8192`-point in-place Radix-2 FFT (`5.86 Hz/bin` at `48 kHz`).
-   - Subtracts `1.8×` the calibrated `25 Hz`-band room noise floor extracted from `step_01_silence.wav`.
-3. **Local Spectral Peak Extraction & Physical Acoustic Gate**:
-   - Extracts true local maxima ($\text{clean}[k] \ge \text{clean}[k-1]$ and $\text{clean}[k] \ge \text{clean}[k+1]$) within $\pm 23\text{ cents}$ of each inharmonically stretched partial:
-     $$f_h = h \cdot f_0 \sqrt{1 + B_m \cdot h^2}, \quad h \in \{1,\dots,10\}$$
-   - **Tenor/Treble Gate (`MIDI 52..96`, `E3–C7`)**: Requires a true local spectral peak at $f_0$ ($h_1$) plus $\ge 55\%$ weighted harmonic completeness.
-   - **Deep Bass Odd-Harmonic Gate (`MIDI 36..51`, `C2–D#3`)**: Requires local peaks at **$\ge 2$ odd harmonics** among $\{h_1, h_3, h_5, h_7\}$ (each $> 3\%$ of frame peak) and suppresses phantom sub-octave roots on upper major triads (`m+12, m+16, m+19` where $2 \times \text{Maj3rd} \approx 5 f_0$ within $+13.7\text{¢}$) unless $h_1$ or $h_7$ is independently present.
-4. **Multiplicative KL-Divergence NMF Deconvolution**:
-   - Solves $\mathbf{v}_{\text{peak}} \approx \mathbf{W}_{\text{cal}} \mathbf{a}$ over candidate keys in 20 fast multiplicative Kullback-Leibler updates using the calibrated 61-key dictionary (`js/audio/calibrated_profile.js`), executing in **`~0.4 ms` per frame** in JavaScript.
-5. **Overtone Excess Verification, Spectral Flux Onsets & Sustain Bridge**:
-   - Verifies candidate octaves (`+12` semitones via even-to-odd harmonic peak ratio $h_2/h_3$) and upper harmonics (`+19, +24, +28, +31, +34, +36` semitones) so harmonic overtones of single bass keys never trigger false upper notes while genuine octaves (`C3+C4`, `B2+B4`) pass cleanly.
-   - Tracks positive spectral flux and per-key activation jumps to trigger crisp `onsetNotes` on repeated strikes, while a 2-frame hold bridge prevents chord readout flicker during acoustic beating dips.
-6. **Score-Informed Hypothesis Fusion**:
-   - During active **Flow** or **Wait** gameplay, `GameEngine.getExpectedMidisAtPlayhead()` passes upcoming score pitches as mild priors into NMF, lowering onset latency to a single hop frame (`~21 ms`) on expected notes while maintaining strict thresholds to catch genuine `WRONG NOTE` strikes.
+### 6.2 Standard Re-Entrant High-G Ukulele (`G4–C4–E4–A4`, Frets `0..12`, `MIDI 60..81`)
+| Tab String Index (`renderer` / `fretboard` / `notes`) | Visual Line | String | Open MIDI | $f_0$ (Hz) | Chord Diagram `[G,C,E,A]` Index |
+| :---: | :--- | :---: | :---: | :---: | :---: |
+| **`0`** | Top line (1st string) | **A4** | `69` | `440.00` | `3` |
+| **`1`** | 2nd line | **E4** | `64` | `329.63` | `2` |
+| **`2`** | 3rd line | **C4** | `60` | `261.63` | `1` |
+| **`3`** | Bottom line (4th string, re-entrant) | **G4** | `67` | `392.00` | `0` |
 
 ---
 
-## 7. Quantitative Benchmark Results (28 Acoustic Recordings)
+## 7. Calibrated Polyphonic Audio DSP & Quantitative Benchmarks (Piano + Ukulele)
 
-Generated reproducibly via `python3 scripts/calibrate_and_benchmark.py` (full per-step breakdown in [`CALIBRATION_BENCHMARK_REPORT.md`](./CALIBRATION_BENCHMARK_REPORT.md), research rationale in [`NOTE_DETECTION_RESEARCH.md`](./NOTE_DETECTION_RESEARCH.md)).
-- **Zero Data Leakage Protocol**: Single-note calibration anchors (`steps 02–20`) are evaluated under **Leave-One-Out Cross-Validation (LOOCV)** (each note's own template is excluded when testing that recording and interpolated solely from neighboring keys). Silence, Dynamics, Intervals, Chords, and Play-Along (`steps 01, 21–28`) are 100% unseen held-out test recordings.
+### 7.1 61-Key Piano Polyphonic DSP (`js/audio/polyphonic_detector.js`, [`NOTE_DETECTION_RESEARCH.md`](./NOTE_DETECTION_RESEARCH.md), [`CALIBRATION_BENCHMARK_REPORT.md`](./CALIBRATION_BENCHMARK_REPORT.md))
+Calibrated from the user's **28 lossless `48 kHz` WAV recordings** in `audio_dataset/samples/` (`python3 scripts/calibrate_and_benchmark.py`):
+- **6-Stage Pipeline**: `52 Hz` HPF + off-main-thread `AudioWorklet` (`4096/1024`) → `8192`-pt Blackman-Harris FFT + `25 Hz`-band noise subtraction → Local peak extraction + Tenor/Treble $h_1$ gate (`MIDI >= 52`) & Deep Bass odd-harmonic gate (`MIDI <= 51`, where `C2` has `0%` $h_1$) + Major-Triad phantom sub-octave filter → 20-iter KL-NMF over 61-key 10-harmonic templates → Overtone excess verifier + spectral flux onset + sustain bridge → Score-Informed priors.
 
-| Detection Architecture | Overall F1 (All 28) | Overall Recall | Polyphonic Chord F1 (Steps 23–28) | Exact Chord Match (Steps 23–28) |
+| Piano Detection Model (`28` Real WAVs — Strict LOOCV + Zero-Shot Chords) | Overall F1 | Recall | Polyphonic Chord F1 (Steps 23–28) | Exact Chords |
 | :--- | :---: | :---: | :---: | :---: |
-| **1. Baseline Monophonic YIN** (`js/audio/pitch.js`) | `71.87%` | `63.89%` | `19.05%` | `0 / 6` (`0.0%`) |
-| **2. Uncalibrated Generic Polyphonic KL-NMF** ($1/h$) | `84.62%` | `91.67%` | `93.33%` | `5 / 6` (`83.3%`) |
-| **3. Calibrated 61-Key Polyphonic (LOOCV + Zero-Shot)** | **`94.74%`** | **`100.00%`** | **`100.00%`** | **`6 / 6` (`100.0%`)** |
-| **4. Hybrid Score-Informed + Calibrated Engine** | **`94.74%`** | **`100.00%`** | **`100.00%`** | **`6 / 6` (`100.0%`)** |
+| Baseline Monophonic YIN (`js/audio/pitch.js`) | `71.87%` | `63.89%` | `19.05%` | `0 / 6` (`0.0%`) |
+| Uncalibrated Generic KL-NMF ($1/h$) | `84.62%` | `91.67%` | `93.33%` | `5 / 6` (`83.3%`) |
+| **Calibrated 61-Key Polyphonic & Score-Informed Engine** | **`94.74%`** | **`100.00%`** | **`100.00%`** | **`6 / 6` (`100.0%`)** |
 
-All 6 held-out polyphonic recordings — `C3+C4` (Octave), `C4+G4` (Fifth), `C4+E4+G4` (C Major), `G3+B3+D4` (G Major), `A3+C4+E4` (A Minor), and `B2+B4` (Yousician Groove Two-Hand Motif) — achieved **100% Precision and 100% Recall**.
+### 7.2 Nylon-String Ukulele Polyphonic DSP (`js/audio/ukulele_detector.js`, [`docs/UKULELE_ACOUSTIC_RESEARCH.md`](./docs/UKULELE_ACOUSTIC_RESEARCH.md))
+Purpose-built for nylon/fluorocarbon ukulele acoustics (Helmholtz $A_0 \approx 260\text{–}310\text{ Hz}$, top-plate $T(1,1) \approx 450\text{–}550\text{ Hz}$, `10–25 ms` pluck click, `+5..22¢` tension bend, `20–85 ms` staggered strums, and unison string beating in 6 of 8 core chords `Am, F, G, Dm, Em, D`) with Low-G (`G3 = 55`) extensibility:
+- **7-Stage Pipeline**: Tuning-adaptive HPF (`180 Hz` High-G / `135 Hz` Low-G) + RMS gate → `8192`-pt Blackman-Harris FFT + room noise subtraction (`<= 8.5 kHz`) → Spectral Flatness (`SFM`) / HNR pluck-click gate → Asymmetric `[-30¢, +40¢]` peak gate + parabolic sub-cent `G-C-E-A` tuner → 22-iter nylon KL-NMF (`MIDI 60..84` / `55..84`) + **unison-resilient reference scaling** + template-residual octave excess verifier + 4-string voice cap → **Adaptive `98 ms` Strum-Aggregation Window** (bypassed for fast single-note melody picking; early-flushes on complete chords) → Score-Informed priors + `identifyUkuleleChord()`.
 
----
+Evaluated via `python3 scripts/calibrate_ukulele.py --synthetic-benchmark` (out-of-distribution nylon modal synth, strict LOOCV on 14 single-note anchors, zero-shot on silence, dynamics, dyads, unisons & 8 strummed chords):
 
-## 8. 28-Step Acoustic Sound Trainer & Live Recalibration
+| Ukulele Detection Model (`28` Steps — Strict LOOCV + Zero-Shot Strums) | Overall F1 | Recall | Single-Note LOOCV F1 | Chords & Dyads F1 | Exact Steps |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| 1. Single-Frame Monophonic YIN | `51.95%` | `40.00%` | `100.00%` | `19.05%` | `17/28` (`60.7%`) |
+| 2. Raw FFT Peak Picking | `75.19%` | `100.00%` | `73.68%` | `75.61%` | `6/28` (`21.4%`) |
+| 3. Naive Uncalibrated NMF (No Strum Agg) | `71.79%` | `56.00%` | `100.00%` | `55.81%` | `18/28` (`64.3%`) |
+| **4. Proposed Ukulele KL-NMF + Strum-Agg (Blind LOOCV)** | **`97.09%`** | **`100.00%`** | **`96.55%`** | **`96.88%`** | **`25/28` (`89.3%`)** |
+| **5. Score-Informed Hybrid Ukulele Engine** | **`100.00%`** | **`100.00%`** | **`100.00%`** | **`100.00%`** | **`28/28` (`100.0%`)** |
 
-Accessible from the **Home** utility bar (`61-Key Acoustic Data Trainer`) or the **Studio** header (`Data Trainer`, `js/trainer/`):
-- **28 Guided Steps**:
-  - `Step 1`: Ambient Room Silence (`3.0s` noise floor & spectral profile).
-  - `Steps 2–8`: 7 Bass Anchors (`C2, G2, B2, C3, E3, G3, A3` — Keys `#1` to `#22`).
-  - `Steps 9–20`: 12 Treble Anchors (`C4, D4, E4, F4, G4, A4, B4, C5, D5, G5, C6, C7` — Keys `#25` to `#61`).
-  - `Steps 21–22`: Soft (`p`) and Loud (`f`) Touch Dynamics on Middle `C4` (`Key #25`).
-  - `Steps 23–24`: Harmonic Intervals (`C3+C4` Octave, `C4+G4` Perfect Fifth).
-  - `Steps 25–27`: 3-Note Triads (`C Major`, `G Major`, `A Minor`).
-  - `Step 28`: Two-Hand Yousician Groove Play-Along (`B2 + B4`).
-- **Clean Acoustic Capture**: Unchecks synthetic reference playback during recording by default and inserts a `45 ms` buffer after the downbeat metronome click so wooden click transients never bleed into WAV samples.
-- **One-Click Live Recalibration (`Recalibrate Detector`)**: Runs `scripts/calibrate_and_benchmark.py` on the backend via `POST /api/dataset/recalibrate`, regenerates `js/audio/calibrated_profile.js` + `audio_dataset/calibrated_profile.json`, and hot-reloads the new 61-key dictionary directly into the active `PianoMicrophone` instance without restarting the browser or server.
+- **Ukulele Telemetry**: Silence FP **`0`**, Chord Symbol Accuracy **`8/8 (100.0%)`**, Unified 1-Burst Strums **`8/8 (100.0%)`**, Tuner MAE **`0.82¢`**, Mean Latency **`26.5 ms`** (single note) / **`142.7 ms`** (4-string strum including physical sweep).
 
 ---
 
-## 9. Practice Modes, Polyphonic Scoring, 5-Finger Colors & Visual Engine
+## 8. 28-Step Acoustic Data Trainers & Live Recalibration (Piano + Ukulele)
 
-- **Automatic Empty-Beat Count-In (Lead-In)**:
-  - Every curriculum part, built-in song, or imported score automatically starts with 1–2 measures of empty count-in beats (`~2.2s–3.2s`, `startTime = -leadInBeats * (60 / bpm)`) with dashed count-in beat lines, metronome clicks, gentle preparatory backing harmony, opening-chord key previews on the 61-key keyboard, and free-play immunity before Beat 1.
-- **Flow Mode (Continuous Tempo & Subtle Non-Punitive Feedback)**:
-  - Simultaneously scores all pitches in `onsetNotes[]` against pending notes within `±140 ms` (**PERFECT**, Soft Sage `#6EE7B7`, `+100 × mult`) or `±280 ms` (**EARLY / LATE**, Warm Champagne `#E2C98A`, `+60 × mult`), accompanied by a delicate concentric water-ripple ring at the note head, up to 3 fine luminous dust motes, and a deduplicated `10.5px` whisper micro-label (`Perfect` / `Early` / `Late`).
-  - **Calm, Non-Punitive Error Cues (Zero Harsh Red Pops)**:
-    - **Missed Notes**: Produce **zero** floating text banners and **zero** particle bursts; unhit score pills quietly settle into desaturated translucent ghost capsules on the staff (`#64748B`).
-    - **Off-Target Key Strikes**: Produce **zero** harsh red flashes or `"WRONG NOTE"` popups; instead, a transient `380 ms` hollow translucent ghost capsule appears at `(playheadX, noteY)` on the staff (`#94A3B8`), paired with a calm muted-slate key press (`#8B95A5`) on the 61-key keyboard.
-  - **Sustained-Note Immunity**: Ringing notes already hit on the current or previous beat are tracked so sustained chords never trigger false off-target resets.
-- **Wait Mode (Auto-Pause Chord & Note Practice)**:
-  - Groups all simultaneous notes within `55 ms` into `currentWaitChord`, cleanly releasing background backing oscillators while frozen at the beat, rendering gentle warm champagne halos around pending chord pills, lighting each constituent chord pill and 3D key in satin sage as soon as it is struck, and automatically resuming backing music and score motion once all active-hand notes in the beat cluster are satisfied.
-- **Independent Left & Right Hand Practice Toggles (`L Left` / `R Right`)**:
-  - Toggle either hand ON or OFF via the bottom dock buttons (`L Left` / `R Right`), keyboard shortcuts **`L`** / **`R`**, or clicking the subtle muted-staff pill directly on the Canvas (also auto-set per curriculum part via `part.targetHands`).
-  - **Blurred Staff & Zero Accuracy Reporting on Disabled Hand**: Optically blurs and dims the disabled staff lane, suppresses all note accuracy evaluation for that hand, restricts `Wait` freezes, 61-key previews, DSP priors, and `Play-Along` piano synth guide notes strictly to enabled hand(s), and marks elapsed notes `"skipped"` on mid-song re-enable.
-- **Pedagogical 5-Finger Color Scheme & Automatic Fingering Engine (`js/engine/fingering.js`, [`PIANO_FINGERING_RESEARCH.md`](./PIANO_FINGERING_RESEARCH.md))**:
-  - Verified across **`8,525 / 8,525` (`100.0%`)** curriculum and repertoire notes:
-    - **Thumb (`T` / Piano `1`)**: Green (`#48A870`, highlight `#74C695`)
-    - **Index (`1` / Piano `2`)**: Golden Yellow (`#F0C830`, highlight `#F8E080`)
-    - **Middle (`2` / Piano `3`)**: Indigo-Purple (`#6848F8`, highlight `#B0A0F8`)
-    - **Ring (`3` / Piano `4`)**: Sky-Cobalt Blue (`#4090F8`, highlight `#98D8F8`)
-    - **Pinky (`4` / Piano `5`)**: Coral-Red (`#E86078`, highlight `#F0A8B8`)
-  - Uses a 2nd-Order Viterbi Dynamic Programming solver grounded in Parncutt (1997), Jacobs (2001), and Nakamura (2014) ergonomics.
-- **Independent Parabolic Bouncing Balls (`YousicianRenderer.computeBallPosition`)**:
-  - Each staff's alabaster 3D sphere jumps smoothly and independently from the head of its current note/chord (`event[i].time`) directly to the head of its next note (`event[i+1].time`) at constant horizontal speed (`pixelsPerSecond = 180 px/s`) along a uniform-gravity parabolic trajectory.
-- **Built-In & Persisted 8-Song 61-Key Repertoire (`602` Verified Notes across `js/songs/library.js`, `songs_data/*.json`, and `samples/*`)**:
-  1. *"Wise Men Say (Can't Help Falling in Love)"* — Elvis Presley (`D Major`, `6/8` at exact `♩. = 63.3333 BPM`, `92` measures, `299` notes: `175` LH + `124` RH).
-  2. *"Yousician Groove"* — Yousician Exercise (`D Major`, `4/4` at `100 BPM`, `8` measures, `42` notes: `22` LH + `20` RH).
-  3. *"Für Elise"* — Ludwig van Beethoven (`A Minor`, `3/8` at `♪ = 120 BPM`, `9` measures with Beat-3 pickup, `53` notes: `18` LH + `35` RH).
-  4. *"Ode to Joy"* — Ludwig van Beethoven (`C Major`, `4/4` at `110 BPM`, `8` measures, `45` notes: `15` LH + `30` RH).
-  5. *"Canon in D"* — Johann Pachelbel (`D Major`, `2/4` at `75 BPM`, `17` measures, `34` notes: `17` LH + `17` RH).
-  6. *"Amazing Grace"* — Traditional Hymn (`songs_data/amazing_grace.json` & `samples/amazing_grace.mid`, `G Major`, `3/4` at `90 BPM`, `17` measures, `51` notes).
-  7. *"Happy Birthday"* — Traditional (`songs_data/happy_birthday.json` & `samples/happy_birthday.musicxml`, `C Major`, `3/4` at `105 BPM`, `9` measures, `34` notes).
-  8. *"Minuet in G (BWV Anh. 114)"* — J.S. Bach / C. Petzold (`songs_data/minuet_in_g.json` & `samples/minuet_in_g.musicxml`, `G Major`, `3/4` at `110 BPM`, `8` measures, `44` notes).
+`SoundCollectionTrainer` (`js/trainer/trainer.js`) and `DatasetStorage` (`js/trainer/storage.js`) dynamically adapt to the active instrument while keeping Piano and Ukulele datasets **100% isolated**:
+- **Piano 28-Step Trainer (`js/trainer/curriculum.js` → `audio_dataset/samples/`)**: Room silence, 7 bass + 12 treble anchors (`C2–C7`), soft/loud dynamics, octave & fifth dyads, C/G/Am triads, and Yousician Groove `B2+B4`; renders mini 61-key preview and recalibrates via `POST /api/dataset/recalibrate` (`scripts/calibrate_and_benchmark.py`).
+- **Ukulele 28-Step Trainer (`js/trainer/ukulele_curriculum.js` → `audio_dataset/ukulele/samples/`)**: Room silence (`3s`), 4 open strings (`G4, C4, E4, A4`), 10 fretboard anchors up to fret 12 (`D4..A5`), soft pluck vs hard forte strum dynamics, 3 dyads + `A4+A4` unison beating check, and 8 essential chords (`C, Am, F, G, G7` up-strum, `Dm, Em` slow arpeggio, `D`); renders a clickable **mini 4-string chord/tab diagram** (sliding 5-fret window up to fret 12), plays staggered `playStrum` references, and recalibrates via `POST /api/dataset/ukulele/recalibrate` (`scripts/calibrate_ukulele.py --real-wavs`), hot-reloading `js/audio/ukulele_profile.js` (`calibrated: true`) directly into `PianoMicrophone`.
+
+---
+
+## 9. Practice Modes, Polyphonic Scoring, Finger Colors & Visual Engine
+
+- **Count-In Lead-In**: Automatic 1–2 bar empty count-in (`startTime < 0`) with metronome ticks, gentle preparatory backing harmony, opening target previews on keys/fretboard, and free-play immunity.
+- **Flow Mode & Wait Mode (`js/engine/evaluator.js`)**:
+  - Flow: `±140 ms` Perfect (`#6EE7B7`), `±280 ms` Early/Late (`#E2C98A`), plus **`95 ms` strum-stagger tolerance** for multi-string ukulele chords.
+  - Wait: Pauses on each enabled-hand chord cluster (`<= 55 ms`), cleanly releases backing voices, and in Ukulele mode **auto-credits simultaneous High-G unison sibling strings** (e.g., dual `A4=69` in `F [2,0,1,0]`, `Am`, `G`, `D`) on a single detected strike so chords never stall.
+- **Independent Lane / Hand Toggles (`L` / `R`)**:
+  - **Piano**: `L Left` (Bass) / `R Right` (Treble) with optical frosted staff blur and register-safe single-hand filtering.
+  - **Ukulele**: `L Chords` / `R Melody` dimming the inactive lane while disabling piano's pitch-register split heuristic (since ukulele melody & chords share `C4–A5`).
+- **Canonical 5-Color Ergonomic Palette (Zero Harsh Reds `#EF4444`/`#F87171`/`#B91C1C`, Zero `alert`/`window.confirm`)**:
+  - `#48A870` (Piano Thumb `T` / Ukulele Open `0`), `#F0C830` (Index `1`), `#6848F8` (Middle `2`), `#4090F8` (Ring `3`), `#E86078` (Pinky `4`).
+- **Built-In & Server 8-Song Repertoire** (all playable on BOTH Piano [`602` notes] and Ukulele via `UkuleleArranger`): *Wise Men Say (Can't Help Falling in Love)* (`860` uku notes), *Yousician Groove* (`168`), *Für Elise* (`58`), *Ode to Joy* (`87`), *Canon in D* (`78`), *Amazing Grace* (`151`), *Happy Birthday* (`111`), and *Minuet in G (BWV Anh. 114)* (`116`).
 
 ---
 
 ## 10. Score Ingestion & OMR Pipeline
 
-Click **"Import"** on Home, Songs, or Studio to convert external music into playable 61-key Yousician tracks — every ingestion pathway aligns note timestamps to measure barlines starting at `t = 0.0000s`, applies `25 ms` visual/audio articulation separation (`gridDur - 0.025s`), assigns ergonomic 5-finger colors, and automatically receives measure-by-measure headphone backing accompaniment (`inferChordsFromNotes`):
-1. **Sheet Music Image (Gemini Vision AI OMR)** (`js/parser/sheet.js`): Transcribes PNG/JPG/WebP sheet music photos into structured dual-staff notes, chords, time/key signatures, clefs, printed fingerings, and BPM via Gemini Multimodal Vision (`gemini-2.5-flash`).
-2. **Standard MIDI (`.mid` / `.midi`)** (`js/parser/midi.js` & `server.py`): Binary SMF parser decoding `MThd`/`MTrk` chunks, tempo (`0xFF 0x51`), time signature (`0xFF 0x58`), and key signature (`0xFF 0x59`) meta events, whole-bar empty prefix stripping, bimanual hand partitioning, and `[36, 96]` octave folding.
-3. **MusicXML (`.musicxml` / `.xml`)** (`js/parser/musicxml.js`): Parses `<part>`, `<measure>` (including pickup Measure `0`), `<pitch>`, `<chord>`, `<backup>`, `<beats>`/`<beat-type>`, `<fifths>`/`<mode>`, `<harmony>`, and `<fingering>`.
-4. **Quick Score Shorthand Composer** (`js/parser/sheet.js`): Instant barline-aligned text-to-song compiler (`Treble: B4:1, D5:1 | ...` / `Bass: B2:0.5, G2:0.5 | ...`).
+Click **Import** on Home, Songs, or Studio to ingest external music — every imported piece is normalized, barline-aligned (`t = 0.0s`, `gridDur - 0.025s`), given ergonomic piano fingerings + automatic headphone chords (`inferChordsFromNotes`), saved to `songs_data/`, and **instantly playable on both Piano AND Ukulele** (auto-arranged via `UkuleleArranger` in Ukulele mode):
+1. **Sheet Music Image (Gemini Vision AI OMR)** (`js/parser/sheet.js` — `gemini-2.5-flash`).
+2. **Standard MIDI (`.mid` / `.midi`)** (`js/parser/midi.js` & `server.py`).
+3. **MusicXML (`.musicxml` / `.xml`)** (`js/parser/musicxml.js`).
+4. **Quick Score Shorthand Composer** (`js/parser/sheet.js`).
 
 ---
 
@@ -293,75 +250,81 @@ Click **"Import"** on Home, Songs, or Studio to convert external music into play
 
 ```text
 piano-app/
-├── index.html                        # Multi-view SPA shell (Home, Learn, Songs, Studio & Modals)
-├── style.css                         # Studio Obsidian & Acoustic Ivory UI, 3D 61-key & catalog styles
-├── server.py                         # Zero-dependency Python 3 HTTP & REST API server
-├── README.md                         # Architecture, curriculum, audio split & developer guide
-├── NOTE_DETECTION_RESEARCH.md        # Polyphonic DSP research & literature review
-├── PIANO_FINGERING_RESEARCH.md       # Ergonomic APF literature review & Viterbi DP math
-├── CALIBRATION_BENCHMARK_REPORT.md   # Auto-generated 28-sample benchmark & harmonic tables
+├── index.html                        # Multi-view SPA shell (163 DOM IDs, Piano|Ukulele switch)
+├── style.css                         # Studio Obsidian & Acoustic Ivory UI, 61-key & 4×12 ukulele styles
+├── server.py                         # Pure-Python 3 ThreadingTCPServer(q=128) HTTP & REST API server
+├── README.md                         # Living architecture, curriculum, DSP & developer guide
+├── NOTE_DETECTION_RESEARCH.md        # Piano polyphonic DSP research
+├── PIANO_FINGERING_RESEARCH.md       # Piano ergonomic Viterbi DP fingering research
+├── CALIBRATION_BENCHMARK_REPORT.md   # 28-sample Piano calibration & benchmark tables
 │
 ├── docs/
-│   └── CURRICULUM_RESEARCH.md        # 61-key piano pedagogy & Levels 1–9 syllabus blueprint
+│   ├── CURRICULUM_RESEARCH.md        # Piano Levels 1–9 pedagogy & syllabus
+│   ├── UKULELE_CURRICULUM.md         # Ukulele Levels 1–9 syllabus & arranger reference
+│   └── UKULELE_ACOUSTIC_RESEARCH.md  # Ukulele nylon physics, 7-stage DSP & 28-step protocol
 │
 ├── scripts/
-│   └── calibrate_and_benchmark.py    # Pure-Python 61-key calibration & LOOCV benchmark suite
+│   ├── calibrate_and_benchmark.py    # Pure-Python 61-key Piano calibration & LOOCV benchmark
+│   └── calibrate_ukulele.py          # Pure-Python Ukulele synthetic ablation & real-WAV calibrator
 │
-├── js/                               # 27 Zero-Dependency Vanilla ES Modules
-│   ├── app.js                        # Main PianoApp multi-view router, Studio & Gamification UI
+├── js/                               # 36 Zero-Dependency Vanilla ES Modules
+│   ├── app.js                        # Multi-instrument PianoApp router, Studio & Gamification controller
 │   ├── audio/
-│   │   ├── backing_track.js          # Stereo headphone accompaniment synth & chord analyzer
-│   │   ├── calibrated_profile.js     # Generated 61-key harmonic templates, B & noise profile
-│   │   ├── polyphonic_detector.js    # 8192-FFT + KL-NMF + Odd-Harmonic + Score-Informed DSP
+│   │   ├── backing_track.js          # Stereo headphone accompaniment engine & chord analyzer
+│   │   ├── calibrated_profile.js     # Calibrated 61-key Piano acoustic dictionary
+│   │   ├── polyphonic_detector.js    # 61-key Piano 8192-FFT + KL-NMF polyphonic detector
+│   │   ├── ukulele_profile.js        # Ukulele nylon acoustic profile (MIDI 55..84, High-G & Low-G)
+│   │   ├── ukulele_detector.js       # 7-stage Ukulele KL-NMF + 98ms Strum-Agg + G-C-E-A tuner
 │   │   ├── piano_worklet.js          # Off-main-thread AudioWorkletProcessor (4096/1024 hop)
-│   │   ├── mic.js                    # MediaStream + 52Hz HPF + Worklet/Analyser coordinator
+│   │   ├── mic.js                    # Instrument-aware Mic + 52/180/135Hz HPF + dual detector bridge
 │   │   ├── pitch.js                  # Legacy monophonic YIN baseline detector
-│   │   ├── synth.js                  # Web Audio multi-harmonic piano synth & metronome
+│   │   ├── synth.js                  # Multi-harmonic Web Audio Piano synth & wooden metronome
+│   │   ├── ukulele_synth.js          # Warm nylon-string Ukulele synth & 14ms staggered strum engine
 │   │   └── midi.js                   # Web MIDI API input manager
 │   ├── curriculum/
-│   │   ├── index.js                  # Unified 9-level curriculum index & O(1) lookup helpers
-│   │   ├── levels_1_to_4.js          # Levels 1–4 (16 lessons · 48 parts · 2,300 notes)
-│   │   └── levels_5_to_9.js          # Levels 5–9 (20 lessons · 60 parts · 5,623 notes)
+│   │   ├── index.js                  # Piano Levels 1–9 index (108 parts, 7,923 notes)
+│   │   ├── levels_1_to_4.js          # Piano Levels 1–4
+│   │   └── levels_5_to_9.js          # Piano Levels 5–9
+│   ├── ukulele/
+│   │   ├── chords.js                 # 229 Ukulele chord shapes, fallback voicer & GCEA↔Tab helpers
+│   │   ├── arranger.js               # Universal Piano-to-Ukulele Viterbi DP + Strum Arranger
+│   │   ├── curriculum.js             # Ukulele Levels 1–9 curriculum (36 lessons, 108 parts, 9,090 notes)
+│   │   ├── renderer.js               # 60 FPS Retina 4-string Tab Canvas, parabolic orb & mini tuner
+│   │   └── fretboard.js              # Interactive 4-string × 12-fret horizontal Ukulele neck
 │   ├── engine/
 │   │   ├── fingering.js              # 2nd-Order Viterbi DP piano fingering & 5-finger palette
-│   │   ├── evaluator.js              # Polyphonic Flow & Wait Mode chord/note scoring engine
-│   │   ├── game.js                   # Timeline loop, Backing vs Play-Along split & completion hook
-│   │   ├── renderer.js               # 60 FPS Retina 2D Canvas staves, parabolic balls & ripples
-│   │   └── keyboard.js               # Interactive 61-key (`C2–C7`) 3D keyboard component
+│   │   ├── evaluator.js              # Polyphonic Flow/Wait scorer (Piano + Ukulele unison/strum)
+│   │   ├── game.js                   # Multi-instrument timeline, backing split & completion lifecycle
+│   │   ├── renderer.js               # 60 FPS Retina Piano dual-staff renderer
+│   │   └── keyboard.js               # Interactive 61-key (`C2–C7`) 3D piano keyboard
 │   ├── gamification/
-│   │   └── progress.js               # Stars, XP, 6 Pianist Ranks, streaks & cascading completion
-│   ├── parser/
-│   │   ├── midi.js                   # Client-side Standard MIDI File parser
-│   │   ├── musicxml.js               # Client-side MusicXML parser
-│   │   └── sheet.js                  # Gemini Vision OMR scanner & shorthand notation parser
-│   ├── songs/
-│   │   ├── library.js                # Built-in 61-key repertoire (Wise Men Say, Für Elise, etc.)
-│   │   └── storage.js                # LocalStorage + server `/api/songs` persistence
+│   │   └── progress.js               # Multi-instrument ProgressManager (Piano & Ukulele ranks/badges)
+│   ├── parser/{midi,musicxml,sheet}.js
+│   ├── songs/{library,storage}.js
 │   └── trainer/
-│       ├── curriculum.js             # 28-step 61-key calibration curriculum (`key61`/`whiteKey`)
-│       ├── recorder.js               # 16-bit PCM WAV recorder & peak-window YIN verifier
-│       ├── storage.js                # Dataset manifest & WAV upload/ZIP client
-│       └── trainer.js                # Interactive play-along trainer & live recalibration UI
+│       ├── curriculum.js             # Piano 28-step calibration steps
+│       ├── ukulele_curriculum.js     # Ukulele 28-step calibration steps (open/frets/unison/chords)
+│       ├── recorder.js               # 16-bit PCM WAV recorder & peak analyzer
+│       ├── storage.js                # Instrument-isolated DatasetStorage (Piano vs Ukulele)
+│       └── trainer.js                # Multi-instrument Data Trainer modal (61-key & 4-string diagrams)
 │
 ├── audio_dataset/
-│   ├── manifest.json                 # Metadata for all 28 recorded WAV calibration samples
-│   ├── calibrated_profile.json       # JSON export of calibrated 61-key acoustic parameters
-│   └── samples/                      # 28 lossless 48 kHz 16-bit mono WAV recordings
-├── samples/                          # Sample `.mid` and `.musicxml` files for import testing
-├── songs_data/                       # Server-persisted custom & repertoire song JSON files
-└── .gitignore                        # Ignores OS/editor artifacts (`.DS_Store`, `__pycache__/`, `.env*`, `.vscode/`) while preserving calibration WAVs
+│   ├── samples/                      # 28 Piano WAV recordings (NEVER delete or overwrite)
+│   ├── manifest.json & calibrated_profile.json
+│   └── ukulele/                      # Isolated Ukulele WAV dataset, manifest & calibrated_profile.json
+├── samples/                          # Sample `.mid` and `.musicxml` import fixtures
+└── songs_data/                       # Server-persisted repertoire & imported Song JSON files
 ```
 
-### Local Server Endpoints (`server.py` — Multi-Threaded `ThreadingTCPServer`, `request_queue_size = 128`)
-`server.py` runs on `socketserver.ThreadingTCPServer` (`allow_reuse_address = True`, `daemon_threads = True`, `request_queue_size = 128`) so parallel browser loading of all 27 ES modules and assets completes concurrently without socket backlog resets:
-- `GET  /api/songs` — Lists persisted songs from `songs_data/*.json`.
-- `POST /api/songs/save` — Saves an imported song JSON to `songs_data/`.
-- `POST /api/parse-midi` — Server-side SMF binary MIDI parser with 61-key octave folding.
-- `GET  /api/dataset/summary` — Returns `manifest.json` and recorded `.wav` count.
-- `POST /api/dataset/sample` — Writes a base64 16-bit PCM `.wav` file to `audio_dataset/samples/` and updates `manifest.json`.
-- `GET  /api/dataset/zip` — Streams `piano_acoustic_dataset.zip` containing `manifest.json` + all `.wav` samples.
-- `POST /api/dataset/recalibrate` — Executes `scripts/calibrate_and_benchmark.py` and returns the freshly generated `calibrated_profile.json` for live browser hot-reload.
-- `POST /api/dataset/reset` — Clears recorded dataset samples and resets `manifest.json`.
+### Local Server Endpoints (`server.py` — `ThreadingTCPServer`, `request_queue_size = 128`)
+- **Songs & MIDI**: `GET /api/songs`, `POST /api/songs/save`, `POST /api/parse-midi`.
+- **Piano Acoustic Dataset (`audio_dataset/`)**: `GET /api/dataset/summary`, `POST /api/dataset/sample`, `GET /api/dataset/zip`, `POST /api/dataset/recalibrate`, `POST /api/dataset/reset`.
+- **Ukulele Acoustic Dataset (`audio_dataset/ukulele/`, 100% isolated from Piano)**:
+  - `GET  /api/dataset/ukulele/summary`
+  - `POST /api/dataset/ukulele/sample`
+  - `GET  /api/dataset/ukulele/zip` (`ukulele_acoustic_dataset.zip`)
+  - `POST /api/dataset/ukulele/recalibrate` (executes `scripts/calibrate_ukulele.py --real-wavs`; returns HTTP `400` if 0 WAVs recorded)
+  - `POST /api/dataset/ukulele/reset` (clears ONLY `audio_dataset/ukulele/`)
 
 ---
 
@@ -374,37 +337,35 @@ piano-app/
 cd /Users/ojus/official/piano-app
 python3 server.py 8080
 ```
-Open **`http://localhost:8080`** in Chrome, Safari, or Edge, plug in **headphones**, and choose **Learn** (Levels 1–9) or **Songs** from the Conservatory Home page.
+Open **`http://localhost:8080`**, plug in **headphones**, and switch seamlessly between **Piano** and **Ukulele** in the top bar.
 
-### 12.2 Re-Run Offline Calibration & Benchmark Suite
-Whenever new WAV recordings are added to `audio_dataset/samples/`, regenerate `js/audio/calibrated_profile.js` and `CALIBRATION_BENCHMARK_REPORT.md` either by clicking **`Recalibrate Detector`** inside **Data Trainer** or via CLI:
+### 12.2 Offline Calibration & Benchmark Suites
 ```bash
+# Piano 61-key calibration & LOOCV benchmark (real 28 WAVs in audio_dataset/samples/)
 python3 /Users/ojus/official/piano-app/scripts/calibrate_and_benchmark.py
+
+# Ukulele synthetic 5-model ablation benchmark (when no ukulele WAVs exist yet)
+python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py --synthetic-benchmark
+
+# Ukulele real-instrument calibration (after recording WAVs in audio_dataset/ukulele/samples/)
+python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py
 ```
 
-### 12.3 Keyboard Shortcuts & Studio Controls
-- **`Home` / `Learn` / `Songs` / `Studio` Pills**: Switch views instantly (auto-pauses active playback when leaving Studio).
-- **`Space`** *(in Studio)*: Play / Pause active piece (or start/cancel step when Data Trainer is open).
-- **`←` / `→`** *(in Studio)*: Seek piece `-3s` / `+3s` (or navigate Previous / Next calibration step in Data Trainer).
-- **`L` / `R`** *(in Studio, or `L Left` / `R Right` dock buttons)*: Toggle Left Hand (Bass) or Right Hand (Treble) ON/OFF for isolated single-hand practice.
-- **`Escape`**: Close Completion Summary or Import Modal.
-- **`Play-Along ON / OFF` (`#btnPlayAlongToggle`)**: Toggles **only** the synthetic piano guide notes ON or OFF — the song's stereo headphone backing accompaniment continues playing smoothly in the background!
-- **`Backing ON / OFF` + `Backing` Slider (`#btnBackingToggle`, default `65%`)**: Adjusts or toggles the stereo headphone accompaniment band independently of piano synth volume.
-- **`Flow` / `Wait`**: Switch between continuous rhythm scoring and auto-pause chord/note practice.
-- **`Enable Mic` + `Gate` Slider**: Enables calibrated 61-key polyphonic microphone detection (`default = 75%`).
+### 12.3 Studio Controls & Keyboard Shortcuts
+- **`Piano | Ukulele`** *(top header)*: Hot-swaps instrument across Home, Learn, Songs, Studio, Microphone DSP, and Data Trainer.
+- **`Space` / `←` `→` / `Escape`**: Play/Pause, Seek `±3s`, Close Modals.
+- **`L` / `R`**: Toggle `Left`/`Right` Hands (Piano) or `Chords`/`Melody` lanes (Ukulele).
+- **Ukulele Studio Computer Keys**: `1–4` pluck open strings (`G4, C4, E4, A4`); `Z–N`, `A–K`, `Q–P` trigger playable fretboard notes.
+- **`Play-Along ON/OFF` (`#btnPlayAlongToggle`)**: Mutes/plays only guide notes while **`Backing`** (`#btnBackingToggle`, default `65%`) continues playing stereo accompaniment in headphones.
 
 ---
 
 ## 13. Antigravity Global Skill & Living Documentation Policy
 
-A dedicated global Antigravity development skill for maintaining, calibrating, and extending this application is installed at:
-- **`~/.gemini/config/skills/yousician-piano-app/SKILL.md`**
-- **`~/.gemini/config/skills/yousician-piano-app/references/dsp-and-calibration.md`**
-- **`~/.gemini/config/skills/yousician-piano-app/references/architecture-and-formats.md`**
-- **`~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh`**
+A dedicated global Antigravity development skill for maintaining, calibrating, and extending this application lives at `~/.gemini/config/skills/yousician-piano-app/` (`SKILL.md`, `references/architecture-and-formats.md`, `references/dsp-and-calibration.md`, `scripts/verify_piano_app.sh`).
 
-### Automated Regression & Verification Summary (`verify_piano_app.sh`)
-Run the 5-stage verification suite to validate Python compilation, `ThreadingTCPServer(request_queue_size=128)` concurrency, zero-harsh-red/zero-alert invariants, `143/143` DOM ID bindings, `.app-header` / `.studio-toolbar` / 2-row `.control-dock` layout separation, all **`27` ES modules** + Studio sub-bar mutual exclusion in JavaScriptCore, `6/6` acoustic WAV fixtures, all **`116` musical pieces (`8,525` notes: `108` curriculum parts / `7,923` notes + `8` repertoire songs / `602` notes)** across 61-key bounds, anatomical chord fingerings, and `100%` Flow/Wait playthroughs, `BackingTrackEngine` headphone audio split, `ProgressManager` round-trips, concurrent `:8080` HTTP routes, and **`README.md` + Skill timestamp freshness**:
+### Automated 5-Stage Verification Suite (`verify_piano_app.sh`)
+Validates Python compilation (`server.py`, `calibrate_and_benchmark.py`, `calibrate_ukulele.py`), `ThreadingTCPServer(q=128)`, zero harsh red/alert invariants across all `38` files, `163/163` DOM ID bindings, `.app-header`/`.studio-toolbar`/2-row `.control-dock` layout, all **`36` ES modules** + Studio sub-bar mutual exclusion in JavaScriptCore, `6/6` Piano WAV fixtures, all **`116` Piano pieces (`8,525` notes)**, all **`8` Ukulele-arranged songs + `108` Ukulele curriculum parts (`9,090` notes)**, `UkulelePolyphonicDetector` single-note/tuner/strum DSP, Piano↔Ukulele hot-swap + unison `F` chord + headphone split, dual `ProgressManager` isolation, concurrent `:8080` HTTP routes (incl. `/api/dataset/ukulele/summary`), and `README.md` + Skill doc freshness:
 ```bash
 bash ~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh
 ```
@@ -415,7 +376,7 @@ bash ~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh
 
 | Area | Current State | Next-Step Enhancement |
 | :--- | :--- | :--- |
-| **Polyphony Density** | Calibrated KL-NMF + Physical Peak Gate achieves `100%` F1 on 2–3 note chords/octaves and supports up to 6 simultaneous voices. | Add sustain-pedal sympathetic resonance modeling or an optional WebGPU/WASM neural multi-f0 head for dense 8-voice romantic repertoire. |
-| **Headphone vs. Open-Speaker Mode** | Optimized for headphones (`Backing` always ON + `Play-Along` piano guide toggle); open-speaker playback can bleed into an active microphone. | Feed the Web Audio `PianoSynthesizer` + `BackingTrackEngine` buses as reference loopback channels into an adaptive spectral echo subtractor inside `piano_worklet.js`. |
-| **Practice Analytics & Looping** | Persistent Stars (`0–3 ★`), XP, 6 Pianist Ranks, Daily Streak, 8 Achievements, and cascading Part/Lesson/Level mastery in `ProgressManager`. | Add interactive measure-looping (`A–B` repeat brackets on Canvas) and per-finger/per-key historical accuracy heatmaps. |
-| **Offline Sheet OMR** | Image sheet transcription calls the Gemini Vision API (`gemini-2.5-flash`). | Bundle an offline WASM/ONNX staff-and-symbol OMR pipeline for zero-network sheet scanning. |
+| **Ukulele Real-Instrument Profile** | Ships with physically modeled High-G/Low-G nylon profile (`97.09%` blind / `100%` hybrid synthetic F1) + full 28-step WAV Trainer & `calibrate_ukulele.py`. | Record 28 real WAVs on the user's ukulele via the Ukulele Data Trainer and click **Recalibrate Ukulele Detector** for personalized `calibrated: true` templates. |
+| **Low-G Toggle in UI** | `UkulelePolyphonicDetector` and `PianoMicrophone` support `'high-g'` (`180 Hz`) and `'low-g'` (`135 Hz`, `MIDI 55..84`). | Add a `High-G | Low-G` tuning selector pill inside Ukulele Studio toolbar & fretboard nut. |
+| **Headphone vs. Open-Speaker Mode** | Optimized for headphones (`Backing` always ON + `Play-Along` guide toggle). | Feed Web Audio synth/backing buses as reference loopback channels into an adaptive echo subtractor inside `piano_worklet.js`. |
+| **Practice Analytics & Offline OMR** | Isolated Stars, XP, 6 Ranks, Daily Streak, 8 Achievements, and Gemini Vision OMR (`gemini-2.5-flash`). | Add `A–B` measure-looping brackets on Canvas and an offline WASM/ONNX sheet OMR model. |

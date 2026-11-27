@@ -26,6 +26,12 @@ DATASET_DIR = os.path.join(BASE_DIR, "audio_dataset")
 SAMPLES_DIR = os.path.join(DATASET_DIR, "samples")
 MANIFEST_PATH = os.path.join(DATASET_DIR, "manifest.json")
 
+# Dedicated Ukulele dataset directories (strictly isolated from Piano audio_dataset/samples/)
+UKULELE_DATASET_DIR = os.path.join(DATASET_DIR, "ukulele")
+UKULELE_SAMPLES_DIR = os.path.join(UKULELE_DATASET_DIR, "samples")
+UKULELE_MANIFEST_PATH = os.path.join(UKULELE_DATASET_DIR, "manifest.json")
+UKULELE_PROFILE_PATH = os.path.join(UKULELE_DATASET_DIR, "calibrated_profile.json")
+
 os.makedirs(SONGS_DIR, exist_ok=True)
 os.makedirs(SAMPLES_DIR, exist_ok=True)
 
@@ -759,6 +765,60 @@ class PianoAppRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"Failed to generate ZIP: {str(e)}"}).encode("utf-8"))
                 return
 
+        elif parsed.path == "/api/dataset/ukulele/summary":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            manifest = {}
+            if os.path.exists(UKULELE_MANIFEST_PATH):
+                try:
+                    with open(UKULELE_MANIFEST_PATH, "r", encoding="utf-8") as f:
+                        manifest = json.load(f)
+                except Exception:
+                    manifest = {}
+
+            sample_files = (
+                [f for f in os.listdir(UKULELE_SAMPLES_DIR) if f.endswith(".wav")]
+                if os.path.isdir(UKULELE_SAMPLES_DIR)
+                else []
+            )
+            response = {
+                "instrument": "ukulele",
+                "total_samples": len(manifest.get("samples", [])),
+                "wav_file_count": len(sample_files),
+                "manifest": manifest,
+                "dataset_dir": UKULELE_DATASET_DIR,
+            }
+            self.wfile.write(json.dumps(response).encode("utf-8"))
+            return
+
+        elif parsed.path == "/api/dataset/ukulele/zip":
+            try:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    if os.path.exists(UKULELE_MANIFEST_PATH):
+                        zip_file.write(UKULELE_MANIFEST_PATH, arcname="manifest.json")
+                    if os.path.isdir(UKULELE_SAMPLES_DIR):
+                        for fname in os.listdir(UKULELE_SAMPLES_DIR):
+                            if fname.endswith(".wav"):
+                                fpath = os.path.join(UKULELE_SAMPLES_DIR, fname)
+                                zip_file.write(fpath, arcname=os.path.join("samples", fname))
+
+                zip_bytes = zip_buffer.getvalue()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", 'attachment; filename="ukulele_acoustic_dataset.zip"')
+                self.send_header("Content-Length", str(len(zip_bytes)))
+                self.end_headers()
+                self.wfile.write(zip_bytes)
+                return
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Failed to generate ukulele ZIP: {str(e)}"}).encode("utf-8"))
+                return
+
         super().do_GET()
 
     def do_POST(self):
@@ -902,6 +962,150 @@ class PianoAppRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": True, "message": "Dataset reset successfully."}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+
+        elif parsed.path == "/api/dataset/ukulele/sample":
+            try:
+                os.makedirs(UKULELE_SAMPLES_DIR, exist_ok=True)
+                data = json.loads(post_body.decode("utf-8"))
+                meta = data.get("metadata", {})
+                audio_b64 = data.get("audioBase64", "")
+
+                step_id = meta.get("id", f"uku_sample_{int(time.time())}")
+                raw_filename = meta.get("filename", f"{step_id}.wav")
+                filename = os.path.basename(raw_filename)
+                if not filename.endswith(".wav"):
+                    filename += ".wav"
+
+                wav_path = os.path.join(UKULELE_SAMPLES_DIR, filename)
+                if audio_b64:
+                    wav_bytes = base64.b64decode(audio_b64)
+                    with open(wav_path, "wb") as f:
+                        f.write(wav_bytes)
+                    meta["file_size_bytes"] = len(wav_bytes)
+
+                meta["filename"] = filename
+                meta["instrument"] = "ukulele"
+                meta["saved_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                meta["audio_url"] = f"/audio_dataset/ukulele/samples/{filename}"
+
+                manifest = {"instrument": "ukulele", "samples": [], "updated_at": meta["saved_at"]}
+                if os.path.exists(UKULELE_MANIFEST_PATH):
+                    try:
+                        with open(UKULELE_MANIFEST_PATH, "r", encoding="utf-8") as f:
+                            manifest = json.load(f)
+                    except Exception:
+                        manifest = {"instrument": "ukulele", "samples": [], "updated_at": meta["saved_at"]}
+
+                if "samples" not in manifest or not isinstance(manifest["samples"], list):
+                    manifest["samples"] = []
+
+                existing_idx = next((i for i, s in enumerate(manifest["samples"]) if s.get("id") == step_id), None)
+                if existing_idx is not None:
+                    manifest["samples"][existing_idx] = meta
+                else:
+                    manifest["samples"].append(meta)
+
+                manifest["instrument"] = "ukulele"
+                manifest["updated_at"] = meta["saved_at"]
+                with open(UKULELE_MANIFEST_PATH, "w", encoding="utf-8") as f:
+                    json.dump(manifest, f, indent=2)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": True,
+                    "instrument": "ukulele",
+                    "filename": filename,
+                    "total_samples": len(manifest["samples"]),
+                    "sample": meta,
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Failed to save ukulele sample: {str(e)}"}).encode("utf-8"))
+            return
+
+        elif parsed.path == "/api/dataset/ukulele/recalibrate":
+            try:
+                wav_files = (
+                    [f for f in os.listdir(UKULELE_SAMPLES_DIR) if f.endswith(".wav")]
+                    if os.path.isdir(UKULELE_SAMPLES_DIR)
+                    else []
+                )
+                if not os.path.exists(UKULELE_MANIFEST_PATH) or len(wav_files) == 0:
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "success": False,
+                        "error": "No recorded ukulele WAV samples found. Record Room Silence and open-string steps first.",
+                    }).encode("utf-8"))
+                    return
+
+                script_path = os.path.join(BASE_DIR, "scripts", "calibrate_ukulele.py")
+                proc = subprocess.run(
+                    [sys.executable, script_path, "--real-wavs"],
+                    cwd=BASE_DIR,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if proc.returncode != 0:
+                    raise RuntimeError(proc.stderr or proc.stdout or "Ukulele calibration script failed")
+
+                with open(UKULELE_PROFILE_PATH, "r", encoding="utf-8") as f:
+                    profile_data = json.load(f)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": True,
+                    "instrument": "ukulele",
+                    "profile": profile_data,
+                }).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Ukulele recalibration failed: {str(e)}"}).encode("utf-8"))
+            return
+
+        elif parsed.path == "/api/dataset/ukulele/reset":
+            try:
+                os.makedirs(UKULELE_SAMPLES_DIR, exist_ok=True)
+                for fname in os.listdir(UKULELE_SAMPLES_DIR):
+                    fpath = os.path.join(UKULELE_SAMPLES_DIR, fname)
+                    if os.path.isfile(fpath):
+                        os.remove(fpath)
+
+                with open(UKULELE_MANIFEST_PATH, "w", encoding="utf-8") as f:
+                    json.dump(
+                        {
+                            "instrument": "ukulele",
+                            "samples": [],
+                            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        },
+                        f,
+                        indent=2,
+                    )
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": True,
+                    "instrument": "ukulele",
+                    "message": "Ukulele dataset reset successfully.",
+                }).encode("utf-8"))
             except Exception as e:
                 self.send_response(500)
                 self.send_header("Content-Type", "application/json")

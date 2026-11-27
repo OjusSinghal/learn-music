@@ -1,142 +1,278 @@
 /**
- * Dataset Storage & Synchronization Manager
- * Manages sample metadata, local caching (LocalStorage + IndexedDB), and server syncing (/api/dataset/*).
+ * Instrument-Scoped Dataset Storage & Synchronization Manager
+ * ===========================================================
+ * Manages acoustic sample metadata, local caching (localStorage), and server syncing:
+ * - `"piano"`   -> key `"yousician_piano_dataset_manifest_v1"` (with legacy read fallback
+ *                  `"yousician_dataset_manifest_v1"`), routes `/api/dataset/*`,
+ *                  audio URL `/audio_dataset/samples/<file>`
+ * - `"ukulele"` -> key `"yousician_ukulele_dataset_manifest_v1"`, routes `/api/dataset/ukulele/*`,
+ *                  audio URL `/audio_dataset/ukulele/samples/<file>`
+ *
+ * Preserves full backward compatibility with legacy static `DatasetStorage.*` calls.
+ * Headless-safe for macOS JavaScriptCore (`jsc -m`).
  */
 
-export class DatasetStorage {
-    static STORAGE_KEY = "yousician_dataset_manifest_v1";
+const LEGACY_PIANO_STORAGE_KEY = "yousician_dataset_manifest_v1";
 
-    /**
-     * Fetch dataset summary from local Python server
-     */
-    static async fetchServerSummary() {
+function _hasLocalStorage() {
+    try {
+        return typeof localStorage !== "undefined" && localStorage !== null;
+    } catch (e) {
+        return false;
+    }
+}
+
+export class DatasetStorage {
+    static STORAGE_KEY = "yousician_piano_dataset_manifest_v1";
+
+    constructor(instrument = "piano") {
+        this.instrument = "piano";
+        this.storageKey = "yousician_piano_dataset_manifest_v1";
+        this.apiBase = "/api/dataset";
+        this.samplesUrlPrefix = "/audio_dataset/samples";
+        this.zipFilename = "piano_acoustic_dataset.zip";
+        this.setInstrument(instrument);
+    }
+
+    setInstrument(instrument = "piano") {
+        const mode = instrument === "ukulele" ? "ukulele" : "piano";
+        this.instrument = mode;
+        if (mode === "ukulele") {
+            this.storageKey = "yousician_ukulele_dataset_manifest_v1";
+            this.apiBase = "/api/dataset/ukulele";
+            this.samplesUrlPrefix = "/audio_dataset/ukulele/samples";
+            this.zipFilename = "ukulele_acoustic_dataset.zip";
+        } else {
+            this.storageKey = "yousician_piano_dataset_manifest_v1";
+            this.apiBase = "/api/dataset";
+            this.samplesUrlPrefix = "/audio_dataset/samples";
+            this.zipFilename = "piano_acoustic_dataset.zip";
+        }
+        return this.instrument;
+    }
+
+    getInstrument() {
+        return this.instrument;
+    }
+
+    getSampleAudioUrl(filename) {
+        if (!filename) return "";
+        return `${this.samplesUrlPrefix}/${filename}`;
+    }
+
+    async fetchServerSummary() {
+        if (typeof fetch !== "function") return null;
         try {
-            const resp = await fetch("/api/dataset/summary");
+            const resp = await fetch(`${this.apiBase}/summary`);
             if (resp.ok) {
                 const data = await resp.json();
+                // Hydrate local cache from server manifest so recorded steps reflect disk state
+                if (data && data.manifest && Array.isArray(data.manifest.samples)) {
+                    const local = this.getLocalManifest();
+                    let changed = false;
+                    for (const s of data.manifest.samples) {
+                        if (s && s.id && !local.samples[s.id]) {
+                            local.samples[s.id] = s;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        local.updatedAt = data.manifest.updated_at || new Date().toISOString();
+                        this.saveLocalManifest(local);
+                    }
+                }
                 return data;
             }
         } catch (e) {
-            console.warn("Server dataset summary not reachable:", e.message);
+            console.warn(`Server ${this.instrument} dataset summary not reachable:`, e.message);
         }
         return null;
     }
 
-    /**
-     * Get locally cached manifest
-     */
-    static getLocalManifest() {
+    getLocalManifest() {
+        if (!_hasLocalStorage()) {
+            return { samples: {}, updatedAt: null };
+        }
         try {
-            const raw = localStorage.getItem(DatasetStorage.STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
+            let raw = localStorage.getItem(this.storageKey);
+            if (!raw && this.instrument === "piano") {
+                raw = localStorage.getItem(LEGACY_PIANO_STORAGE_KEY);
+            }
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === "object" && parsed.samples) {
+                    return parsed;
+                }
+            }
         } catch (e) {}
         return { samples: {}, updatedAt: null };
     }
 
-    /**
-     * Save local manifest cache
-     */
-    static saveLocalManifest(manifest) {
+    saveLocalManifest(manifest) {
+        if (!_hasLocalStorage()) return;
         try {
-            localStorage.setItem(DatasetStorage.STORAGE_KEY, JSON.stringify(manifest));
+            const payload = JSON.stringify(manifest);
+            localStorage.setItem(this.storageKey, payload);
+            if (this.instrument === "piano") {
+                localStorage.setItem(LEGACY_PIANO_STORAGE_KEY, payload);
+            }
         } catch (e) {}
     }
 
-    /**
-     * Save a recorded sample to both server and local cache
-     * @param {Object} metadata - Sample metadata
-     * @param {string} audioBase64 - Raw base64-encoded WAV data
-     */
-    static async saveSample(metadata, audioBase64) {
-        // 1. Update local manifest
-        const local = DatasetStorage.getLocalManifest();
+    async saveSample(metadata, audioBase64) {
+        const local = this.getLocalManifest();
+        const nowIso = new Date().toISOString();
         local.samples[metadata.id] = {
             ...metadata,
-            savedAt: new Date().toISOString()
+            instrument: this.instrument,
+            savedAt: nowIso
         };
-        local.updatedAt = new Date().toISOString();
-        DatasetStorage.saveLocalManifest(local);
+        local.updatedAt = nowIso;
+        this.saveLocalManifest(local);
 
-        // 2. Transmit to server
         let serverSuccess = false;
-        try {
-            const payload = {
-                metadata: {
-                    ...metadata,
-                    savedAt: local.updatedAt
-                },
-                audioBase64
-            };
+        if (typeof fetch === "function") {
+            try {
+                const payload = {
+                    metadata: {
+                        ...metadata,
+                        instrument: this.instrument,
+                        savedAt: nowIso
+                    },
+                    audioBase64
+                };
 
-            const resp = await fetch("/api/dataset/sample", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+                const resp = await fetch(`${this.apiBase}/sample`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
 
-            if (resp.ok) {
-                const result = await resp.json();
-                serverSuccess = true;
-                return { success: true, serverSynced: true, data: result };
+                if (resp.ok) {
+                    const result = await resp.json();
+                    serverSuccess = true;
+                    return { success: true, serverSynced: true, data: result };
+                }
+            } catch (e) {
+                console.warn(`Failed to sync ${this.instrument} sample to server:`, e);
             }
-        } catch (e) {
-            console.warn("Failed to sync sample to server:", e);
         }
 
         return { success: true, serverSynced: serverSuccess, data: local.samples[metadata.id] };
     }
 
-    /**
-     * Check if a specific step has been recorded
-     */
-    static isStepRecorded(stepId) {
-        const local = DatasetStorage.getLocalManifest();
-        return !!local.samples[stepId];
+    isStepRecorded(stepId) {
+        const local = this.getLocalManifest();
+        return Boolean(local.samples && local.samples[stepId]);
     }
 
-    /**
-     * Get metadata for a specific recorded step
-     */
-    static getStepRecord(stepId) {
-        const local = DatasetStorage.getLocalManifest();
-        return local.samples[stepId] || null;
+    getStepRecord(stepId) {
+        const local = this.getLocalManifest();
+        return (local.samples && local.samples[stepId]) || null;
     }
 
-    /**
-     * Reset/Clear the entire dataset
-     */
-    static async resetDataset() {
-        // 1. Clear local cache
-        localStorage.removeItem(DatasetStorage.STORAGE_KEY);
+    async recalibrate() {
+        if (typeof fetch !== "function") {
+            throw new Error("Fetch API unavailable in headless runtime");
+        }
+        const resp = await fetch(`${this.apiBase}/recalibrate`, { method: "POST" });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            throw new Error(data.error || "Calibration endpoint returned an error");
+        }
+        return data;
+    }
 
-        // 2. Request server reset
-        try {
-            await fetch("/api/dataset/reset", { method: "POST" });
-        } catch (e) {}
+    async resetDataset() {
+        if (_hasLocalStorage()) {
+            try {
+                localStorage.removeItem(this.storageKey);
+                if (this.instrument === "piano") {
+                    localStorage.removeItem(LEGACY_PIANO_STORAGE_KEY);
+                }
+            } catch (e) {}
+        }
+
+        if (typeof fetch === "function") {
+            try {
+                await fetch(`${this.apiBase}/reset`, { method: "POST" });
+            } catch (e) {}
+        }
 
         return true;
     }
 
-    /**
-     * Trigger browser download of complete dataset ZIP from server
-     */
-    static downloadDatasetZip() {
-        window.open("/api/dataset/zip", "_blank");
+    downloadDatasetZip() {
+        if (typeof window !== "undefined" && typeof window.open === "function") {
+            window.open(`${this.apiBase}/zip`, "_blank");
+        }
     }
 
-    /**
-     * Export manifest as downloadable JSON file
-     */
-    static exportManifestJson() {
-        const local = DatasetStorage.getLocalManifest();
+    exportManifestJson() {
+        if (typeof document === "undefined" || typeof Blob === "undefined" || typeof URL === "undefined") {
+            return;
+        }
+        const local = this.getLocalManifest();
         const blob = new Blob([JSON.stringify(local, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `piano_acoustic_manifest_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `${this.instrument}_acoustic_manifest_${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // -------------------------------------------------------------------------
+    // Backward-compatible static delegates (default to Piano dataset)
+    // -------------------------------------------------------------------------
+    static _defaultInstance = null;
+
+    static _getDefault() {
+        if (!DatasetStorage._defaultInstance) {
+            DatasetStorage._defaultInstance = new DatasetStorage("piano");
+        }
+        return DatasetStorage._defaultInstance;
+    }
+
+    static fetchServerSummary() {
+        return DatasetStorage._getDefault().fetchServerSummary();
+    }
+
+    static getLocalManifest() {
+        return DatasetStorage._getDefault().getLocalManifest();
+    }
+
+    static saveLocalManifest(manifest) {
+        return DatasetStorage._getDefault().saveLocalManifest(manifest);
+    }
+
+    static saveSample(metadata, audioBase64) {
+        return DatasetStorage._getDefault().saveSample(metadata, audioBase64);
+    }
+
+    static isStepRecorded(stepId) {
+        return DatasetStorage._getDefault().isStepRecorded(stepId);
+    }
+
+    static getStepRecord(stepId) {
+        return DatasetStorage._getDefault().getStepRecord(stepId);
+    }
+
+    static recalibrate() {
+        return DatasetStorage._getDefault().recalibrate();
+    }
+
+    static resetDataset() {
+        return DatasetStorage._getDefault().resetDataset();
+    }
+
+    static downloadDatasetZip() {
+        return DatasetStorage._getDefault().downloadDatasetZip();
+    }
+
+    static exportManifestJson() {
+        return DatasetStorage._getDefault().exportManifestJson();
     }
 }

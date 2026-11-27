@@ -7,10 +7,14 @@
 
 import { SONG_LIBRARY } from "./songs/library.js";
 import { PianoSynthesizer } from "./audio/synth.js";
+import { UkuleleSynthesizer } from "./audio/ukulele_synth.js";
 import { PianoMicrophone } from "./audio/mic.js";
 import { MidiInputManager } from "./audio/midi.js";
 import { YousicianRenderer } from "./engine/renderer.js";
+import { UkuleleTabRenderer } from "./ukulele/renderer.js";
 import { PianoKeyboard } from "./engine/keyboard.js";
+import { UkuleleFretboard } from "./ukulele/fretboard.js";
+import { UkuleleArranger } from "./ukulele/arranger.js";
 import { GameEngine } from "./engine/game.js";
 import { PianoFingeringEngine } from "./engine/fingering.js";
 import { MidiFileParser } from "./parser/midi.js";
@@ -18,13 +22,59 @@ import { MusicXmlParser } from "./parser/musicxml.js";
 import { SheetMusicScanner } from "./parser/sheet.js";
 import { SongStorage } from "./songs/storage.js";
 import { SoundCollectionTrainer } from "./trainer/trainer.js";
-import { ProgressManager } from "./gamification/progress.js";
+import {
+    ProgressManager,
+    UKULELE_RANKS,
+    UKULELE_ACHIEVEMENT_DEFINITIONS
+} from "./gamification/progress.js";
 import {
     PIANO_CURRICULUM,
     getPartById,
     getNextPart,
     getAllCurriculumParts
 } from "./curriculum/index.js";
+import {
+    UKULELE_CURRICULUM,
+    getUkuleleLevelByNumber,
+    getUkuleleLessonById,
+    getUkulelePartById,
+    getNextUkulelePart,
+    getAllUkuleleCurriculumParts
+} from "./ukulele/curriculum.js";
+
+const ACTIVE_INSTRUMENT_STORAGE_KEY = "yousician_active_instrument";
+
+// Safe computer-keyboard-to-ukulele mapping in Studio Ukulele mode
+// (intentionally leaves Space, ArrowLeft/Right, KeyL, KeyR, KeyM free for transport & lane shortcuts)
+const UKULELE_KEY_MAP = {
+    Digit1: { midi: 67, string: 3, fret: 0 }, // Open G4
+    Digit2: { midi: 60, string: 2, fret: 0 }, // Open C4
+    Digit3: { midi: 64, string: 1, fret: 0 }, // Open E4
+    Digit4: { midi: 69, string: 0, fret: 0 }, // Open A4
+    KeyZ: { midi: 60, string: 2, fret: 0 },   // C4
+    KeyX: { midi: 62, string: 2, fret: 2 },   // D4
+    KeyC: { midi: 64, string: 1, fret: 0 },   // E4
+    KeyV: { midi: 65, string: 1, fret: 1 },   // F4
+    KeyB: { midi: 67, string: 1, fret: 3 },   // G4
+    KeyN: { midi: 69, string: 0, fret: 0 },   // A4
+    KeyA: { midi: 60, string: 2, fret: 0 },   // C4
+    KeyS: { midi: 62, string: 2, fret: 2 },   // D4
+    KeyD: { midi: 64, string: 1, fret: 0 },   // E4
+    KeyF: { midi: 65, string: 1, fret: 1 },   // F4
+    KeyG: { midi: 67, string: 1, fret: 3 },   // G4
+    KeyH: { midi: 69, string: 0, fret: 0 },   // A4
+    KeyJ: { midi: 71, string: 0, fret: 2 },   // B4
+    KeyK: { midi: 72, string: 0, fret: 3 },   // C5
+    KeyQ: { midi: 61, string: 2, fret: 1 },   // C#4
+    KeyW: { midi: 63, string: 2, fret: 3 },   // D#4
+    KeyE: { midi: 66, string: 1, fret: 2 },   // F#4
+    KeyT: { midi: 68, string: 1, fret: 4 },   // G#4
+    KeyY: { midi: 70, string: 0, fret: 1 },   // A#4
+    KeyU: { midi: 74, string: 0, fret: 5 },   // D5
+    KeyI: { midi: 76, string: 0, fret: 7 },   // E5
+    KeyO: { midi: 77, string: 0, fret: 8 },   // F5
+    KeyP: { midi: 79, string: 0, fret: 10 }   // G5
+};
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -61,50 +111,95 @@ function renderCompletionStarsSvgHtml(earnedStars = 0) {
 
 export class PianoApp {
     constructor() {
-        this.synth = new PianoSynthesizer();
+        // Restore persisted instrument preference ("piano" | "ukulele"), headless-safe
+        let savedInstrument = "piano";
+        try {
+            if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.getItem === "function") {
+                const stored = localStorage.getItem(ACTIVE_INSTRUMENT_STORAGE_KEY);
+                if (stored === "ukulele" || stored === "piano") {
+                    savedInstrument = stored;
+                }
+            }
+        } catch (_err) {}
+        this.activeInstrument = savedInstrument;
+
+        // Shared AudioContext & Dual Synthesizers (Piano + Nylon Ukulele)
+        this.pianoSynth = new PianoSynthesizer();
+        this.ukuleleSynth = new UkuleleSynthesizer(this.pianoSynth);
+        this.synth = this.pianoSynth;
+
+        // Dual 60 FPS Canvas Visualizers sharing #yousicianCanvas
         this.canvas = document.getElementById("yousicianCanvas");
-        this.renderer = new YousicianRenderer(this.canvas, {
+        this.pianoRenderer = new YousicianRenderer(this.canvas, {
             onToggleHand: (hand) => this.toggleHandPractice(hand)
         });
+        this.ukuleleRenderer = new UkuleleTabRenderer(this.canvas, {
+            pixelsPerSecond: 180,
+            onToggleHand: (hand) => this.toggleHandPractice(hand)
+        });
+        this.renderer = this.pianoRenderer;
 
-        // Deduplicated repertoire & custom song list
+        // Deduplicated canonical repertoire & custom song list + arranged ukulele cache
         this.songs = this._mergeUniqueSongs(SONG_LIBRARY, SongStorage.getLocalSongs());
+        this._ukuleleSongCache = new Map();
+        this.currentRawSongId = null;
 
         // Multi-view & curriculum state
         this.currentView = "home"; // "home" | "learn" | "songs" | "studio"
         this.selectedLevelNumber = 1;
+        this.selectedLevelByInstrument = { piano: 1, ukulele: 1 };
         this.activeCurriculumPartId = null;
         this.collapsedLessonIds = new Set();
         this.songsFilter = "all"; // "all" | "completed" | "in_progress"
         this.songsSearchQuery = "";
 
-        // Gamification & Progress Manager
-        this.progress = new ProgressManager({
+        // Isolated per-instrument Gamification & Progress Managers
+        this.pianoProgress = new ProgressManager({
             curriculum: PIANO_CURRICULUM
         });
+        this.ukuleleProgress = new ProgressManager({
+            storageKey: "yousician_ukulele_progress_v1",
+            curriculum: UKULELE_CURRICULUM,
+            ranks: UKULELE_RANKS,
+            achievements: UKULELE_ACHIEVEMENT_DEFINITIONS,
+            instrument: "ukulele"
+        });
+        this.progress = this.pianoProgress;
 
-        // Initialize selected level to active Continue Learning level if available
-        const initialContinue = this.progress.getContinueLearning();
-        if (initialContinue && initialContinue.level) {
-            const lvNum = typeof initialContinue.level === "object"
-                ? initialContinue.level.level
-                : Number(initialContinue.level);
-            if (lvNum >= 1 && lvNum <= 9) {
-                this.selectedLevelNumber = lvNum;
+        // Initialize selected levels per instrument from Continue Learning
+        for (const [instKey, progMgr] of [["piano", this.pianoProgress], ["ukulele", this.ukuleleProgress]]) {
+            const cont = progMgr.getContinueLearning();
+            if (cont && cont.level) {
+                const lvNum = typeof cont.level === "object"
+                    ? cont.level.level
+                    : Number(cont.level);
+                if (lvNum >= 1 && lvNum <= 9) {
+                    this.selectedLevelByInstrument[instKey] = lvNum;
+                }
             }
         }
+        this.selectedLevelNumber = this.selectedLevelByInstrument[this.activeInstrument] || 1;
 
-        // Setup bottom 61-key keyboard: C2 (MIDI 36, Key #1) to C7 (MIDI 96, Key #61)
+        // Setup bottom interactive instruments: 61-Key Piano Keyboard & 4-String Ukulele Fretboard
         this.keyboardContainer = document.getElementById("pianoKeyboard");
-        this.keyboard = new PianoKeyboard(this.keyboardContainer, {
+        this.pianoKeyboard = new PianoKeyboard(this.keyboardContainer, {
             startMidi: 36,
             endMidi: 96,
             onKeyPress: (midi) => {
-                this.synth.init();
-                this.synth.playNote(midi, 0.5);
+                this.pianoSynth.init();
+                this.pianoSynth.playNote(midi, 0.5);
                 this.game.handleUserInputNote(midi, true);
             }
         });
+        this.ukuleleFretboardEl = document.getElementById("ukuleleFretboard");
+        this.ukuleleFretboard = new UkuleleFretboard(this.ukuleleFretboardEl, {
+            onNotePlay: (midi, info) => {
+                this.ukuleleSynth.init();
+                this.ukuleleSynth.playNote(midi, 0.55, 0.85, info);
+                this.game.handleUserInputNote(midi, true);
+            }
+        });
+        this.keyboard = this.pianoKeyboard;
 
         // Setup Game Engine (with stereo headphone backing + end-of-piece completion callback)
         this.game = new GameEngine(this.renderer, this.keyboard, this.synth, {
@@ -113,8 +208,8 @@ export class PianoApp {
             onSongComplete: (summary) => this.handleSongComplete(summary)
         });
 
-        // Setup Microphone Listener for Acoustic Piano (Calibrated 61-Key Polyphonic + Score-Informed)
-        this.mic = new PianoMicrophone(this.synth.ctx, {
+        // Setup Microphone Listener (supports switching between Calibrated 61-Key Piano & Ukulele Detectors)
+        this.mic = new PianoMicrophone(this.pianoSynth.ctx, {
             onVolume: (vol) => this.updateVuMeter(vol),
             onPitch: (pitchResult) => this.handleDetectedPitch(pitchResult),
             onStatusChange: (status) => this.updateMicStatusUI(status),
@@ -122,7 +217,7 @@ export class PianoApp {
             getExpectedMidis: () => this.game.getExpectedMidisAtPlayhead()
         });
 
-        // Setup Acoustic Sound Collection & Calibration Trainer
+        // Setup Acoustic Sound Collection & Calibration Trainer (Piano & Ukulele datasets)
         this.trainer = new SoundCollectionTrainer(this.synth, this.keyboard, this.mic, {
             onProgressUpdate: (done, total) => {
                 const text = `${done}/${total}`;
@@ -130,6 +225,11 @@ export class PianoApp {
                 if (badge) badge.textContent = text;
                 const homeBadge = document.getElementById("homeTrainerBadge");
                 if (homeBadge) homeBadge.textContent = text;
+            },
+            onProfileUpdated: (profile, inst) => {
+                if (this.mic && typeof this.mic.reloadCalibrationProfile === "function") {
+                    this.mic.reloadCalibrationProfile(profile, inst || this.activeInstrument);
+                }
             }
         });
 
@@ -147,10 +247,15 @@ export class PianoApp {
         this.stagedMxmlSong = null;
         this.stagedSheetDataUrl = null;
 
-        // UI DOM references (100% consistent with index.html)
+        // UI DOM references (100% consistent with index.html — all 143 Piano IDs preserved + Ukulele IDs)
         this.dom = {
-            // Top Navigation & Views
+            // Top Navigation, Instrument Switcher & Views
             btnBrandHome: document.getElementById("btnBrandHome"),
+            brandInstrumentLabel: document.getElementById("brandInstrumentLabel"),
+            brandStageBadge: document.getElementById("brandStageBadge"),
+            instrumentSwitcher: document.getElementById("instrumentSwitcher"),
+            btnInstrumentPiano: document.getElementById("btnInstrumentPiano"),
+            btnInstrumentUkulele: document.getElementById("btnInstrumentUkulele"),
             navBtnHome: document.getElementById("navBtnHome"),
             navBtnLearn: document.getElementById("navBtnLearn"),
             navBtnSongs: document.getElementById("navBtnSongs"),
@@ -161,6 +266,9 @@ export class PianoApp {
             viewStudio: document.getElementById("viewStudio"),
             studioHeaderControls: document.getElementById("studioHeaderControls"),
             studioRightHints: document.getElementById("studioRightHints"),
+            fingerLegendPill: document.getElementById("fingerLegendPill"),
+            fingerChip0: document.getElementById("fingerChip0"),
+            shortcutsHandsLabel: document.getElementById("shortcutsHandsLabel"),
 
             // Studio Curriculum Breadcrumb & Mutually Exclusive Piece Controls
             studioCurriculumBar: document.getElementById("studioCurriculumBar"),
@@ -178,6 +286,7 @@ export class PianoApp {
             headerXpFill: document.getElementById("headerXpFill"),
 
             // Home View Elements
+            homeConservatoryEyebrow: document.getElementById("homeConservatoryEyebrow"),
             homeRankTitle: document.getElementById("homeRankTitle"),
             homeXpLabel: document.getElementById("homeXpLabel"),
             homeXpBarFill: document.getElementById("homeXpBarFill"),
@@ -188,18 +297,24 @@ export class PianoApp {
             btnContinueLesson: document.getElementById("btnContinueLesson"),
             continueLessonMeta: document.getElementById("continueLessonMeta"),
             heroCardLearn: document.getElementById("heroCardLearn"),
+            homeLearnDesc: document.getElementById("homeLearnDesc"),
             homeLearnBarFill: document.getElementById("homeLearnBarFill"),
             homeLearnStats: document.getElementById("homeLearnStats"),
             heroCardSongs: document.getElementById("heroCardSongs"),
+            homeSongsDesc: document.getElementById("homeSongsDesc"),
             homeSongsBarFill: document.getElementById("homeSongsBarFill"),
             homeSongsStats: document.getElementById("homeSongsStats"),
             btnHomeOpenStudio: document.getElementById("btnHomeOpenStudio"),
             btnHomeOpenImport: document.getElementById("btnHomeOpenImport"),
             btnHomeOpenTrainer: document.getElementById("btnHomeOpenTrainer"),
+            homeTrainerLabel: document.getElementById("homeTrainerLabel"),
             homeTrainerBadge: document.getElementById("homeTrainerBadge"),
             homeAchievementsRow: document.getElementById("homeAchievementsRow"),
 
             // Learn View Elements
+            learnEyebrow: document.getElementById("learnEyebrow"),
+            learnTitle: document.getElementById("learnTitle"),
+            learnSubtitle: document.getElementById("learnSubtitle"),
             learnOverallSummary: document.getElementById("learnOverallSummary"),
             btnLearnContinue: document.getElementById("btnLearnContinue"),
             levelTabsRail: document.getElementById("levelTabsRail"),
@@ -212,6 +327,8 @@ export class PianoApp {
             lessonsListContainer: document.getElementById("lessonsListContainer"),
 
             // Songs View Elements
+            songsEyebrow: document.getElementById("songsEyebrow"),
+            songsSubtitle: document.getElementById("songsSubtitle"),
             songsOverallSummary: document.getElementById("songsOverallSummary"),
             btnSongsImport: document.getElementById("btnSongsImport"),
             songsFilterAll: document.getElementById("songsFilterAll"),
@@ -229,6 +346,8 @@ export class PianoApp {
             btnModeWait: document.getElementById("btnModeWait"),
             btnHandLeft: document.getElementById("btnHandLeft"),
             btnHandRight: document.getElementById("btnHandRight"),
+            handLeftLabel: document.getElementById("handLeftLabel"),
+            handRightLabel: document.getElementById("handRightLabel"),
             handLeftBadge: document.getElementById("handLeftBadge"),
             handRightBadge: document.getElementById("handRightBadge"),
             timelineSlider: document.getElementById("timelineSlider"),
@@ -355,6 +474,9 @@ export class PianoApp {
             }
         } catch (_err) {}
 
+        // Apply initial instrument context ("piano" | "ukulele") before rendering views
+        this.setInstrument(this.activeInstrument, { initial: true, skipToast: true });
+
         // Initial render of Minimal Home, Learn, Songs, and Header Gamification Pill
         this.switchView("home");
         this.refreshAllGamificationUI();
@@ -365,6 +487,315 @@ export class PianoApp {
         // Preload first song into Studio so Free Studio is immediately ready
         if (this.songs.length > 0) {
             this.loadSongById(this.songs[0].id);
+        }
+    }
+
+    /* ======================================================================
+       Active Instrument Helpers & Seamless Piano ↔ Ukulele Mode Switching
+       ====================================================================== */
+
+    isUkuleleMode() {
+        return this.activeInstrument === "ukulele";
+    }
+
+    getActiveProgress() {
+        return this.activeInstrument === "ukulele" ? this.ukuleleProgress : this.pianoProgress;
+    }
+
+    getActiveCurriculum() {
+        return this.activeInstrument === "ukulele" ? UKULELE_CURRICULUM : PIANO_CURRICULUM;
+    }
+
+    getActiveLevelByNumber(levelNum) {
+        if (this.activeInstrument === "ukulele") {
+            return getUkuleleLevelByNumber(levelNum);
+        }
+        return PIANO_CURRICULUM.find((l) => l.level === Number(levelNum)) || null;
+    }
+
+    getActivePartById(partId) {
+        if (this.activeInstrument === "ukulele" || String(partId || "").startsWith("uku_")) {
+            return getUkulelePartById(partId);
+        }
+        return getPartById(partId);
+    }
+
+    getActiveNextPart(partId) {
+        if (this.activeInstrument === "ukulele" || String(partId || "").startsWith("uku_")) {
+            return getNextUkulelePart(partId);
+        }
+        return getNextPart(partId);
+    }
+
+    getActiveAllCurriculumParts() {
+        return this.activeInstrument === "ukulele" ? getAllUkuleleCurriculumParts() : getAllCurriculumParts();
+    }
+
+    getPlayableSongForInstrument(rawSong, instrument = this.activeInstrument) {
+        if (!rawSong) return null;
+        if (instrument === "ukulele") {
+            if (rawSong.instrument === "ukulele") {
+                return rawSong;
+            }
+            const cacheKey = `${rawSong.id || rawSong.title || "song"}:${rawSong.notes?.length || 0}:${rawSong.bpm || 0}`;
+            if (this._ukuleleSongCache.has(cacheKey)) {
+                return this._ukuleleSongCache.get(cacheKey);
+            }
+            const arranged = UkuleleArranger.arrangeSongForUkulele(rawSong);
+            this._ukuleleSongCache.set(cacheKey, arranged);
+            return arranged;
+        }
+        PianoFingeringEngine.ensureSongFingering(rawSong);
+        return rawSong;
+    }
+
+    updateInstrumentCopyUI() {
+        const isUku = this.isUkuleleMode();
+
+        if (this.dom.brandInstrumentLabel) {
+            this.dom.brandInstrumentLabel.textContent = isUku ? "Ukulele" : "Piano";
+        }
+        if (this.dom.brandStageBadge) {
+            this.dom.brandStageBadge.textContent = isUku ? "G-C-E-A" : "61-Key";
+            this.dom.brandStageBadge.title = isUku
+                ? "Standard Re-Entrant High-G Ukulele (G4–C4–E4–A4, Frets 0–12) with KL-NMF Acoustic Chord Detection"
+                : "Calibrated from your 28 WAV samples for 61-key polyphonic chord & single-note detection (Key #1 C2 to Key #61 C7)";
+        }
+
+        // Home View Copy
+        if (this.dom.homeConservatoryEyebrow) {
+            this.dom.homeConservatoryEyebrow.textContent = isUku
+                ? "High-G Ukulele Conservatory · G4–C4–E4–A4"
+                : "61-Key Personal Conservatory · C2–C7";
+        }
+        if (this.dom.homeLearnDesc) {
+            this.dom.homeLearnDesc.textContent = isUku
+                ? "Step-by-step ukulele syllabus from open strings & first chords to island strumming, barre shapes, fingerpicking, and chord-melody mastery — pairing Solo & Chords in every lesson."
+                : "Step-by-step conservatory progression from Middle C foundations to chord inversions, Alberti bass, 7th grooves, and two-hand mastery — pairing Solo & Chords in every lesson.";
+        }
+        if (this.dom.homeSongsDesc) {
+            this.dom.homeSongsDesc.textContent = isUku
+                ? "Every built-in, saved, and imported song automatically arranged for 4-string ukulele tab & chords with stereo headphone accompaniment — toggle guide ukulele notes anytime."
+                : "Full 61-key repertoire and imported arrangements backed by warm stereo headphone accompaniment — toggle Play-Along piano notes ON or OFF while the song band plays on.";
+        }
+        if (this.dom.homeTrainerLabel) {
+            this.dom.homeTrainerLabel.textContent = isUku
+                ? "Ukulele Acoustic Data Trainer"
+                : "61-Key Acoustic Data Trainer";
+        }
+
+        // Learn View Copy
+        if (this.dom.learnEyebrow) {
+            this.dom.learnEyebrow.textContent = isUku
+                ? "Structured Ukulele Syllabus · High-G (G-C-E-A · Frets 0–12)"
+                : "Structured Piano Syllabus · 61 Keys (C2–C7)";
+        }
+        if (this.dom.learnTitle) {
+            this.dom.learnTitle.textContent = isUku
+                ? "Learn Ukulele · Levels 1–9"
+                : "Learn Piano · Levels 1–9";
+        }
+        if (this.dom.learnSubtitle) {
+            this.dom.learnSubtitle.textContent = isUku
+                ? "Every lesson develops Single-Note Picking, Authentic Strumming Chords, and Chord-Melody Groove with stereo headphone backing tracks."
+                : "Every lesson builds Solo melody fluency, Harmonic Chords, and Bimanual Performance with headphone backing tracks.";
+        }
+
+        // Songs View Copy
+        if (this.dom.songsEyebrow) {
+            this.dom.songsEyebrow.textContent = isUku
+                ? "4-String Ukulele Arrangements & Headphone Accompaniment"
+                : "Repertoire Library & Headphone Accompaniment";
+        }
+        if (this.dom.songsSubtitle) {
+            this.dom.songsSubtitle.textContent = isUku
+                ? "Play any built-in or imported song arranged automatically for 4-string ukulele tab & chords with stereo headphone backing music."
+                : "Play full 61-key arrangements with stereo backing music in your headphones. Toggle guide piano notes anytime in Studio.";
+        }
+
+        // Studio Toolbar & Dock Labels
+        if (this.dom.handLeftLabel) {
+            this.dom.handLeftLabel.textContent = isUku ? "Chords" : "Left";
+        }
+        if (this.dom.handRightLabel) {
+            this.dom.handRightLabel.textContent = isUku ? "Melody" : "Right";
+        }
+        if (this.dom.btnHandLeft) {
+            this.dom.btnHandLeft.title = isUku
+                ? "Toggle Ukulele Chords / Strumming Track On or Off (Shortcut: L)"
+                : "Toggle Left Hand / Lower Bass Staff On or Off (Shortcut: L)";
+        }
+        if (this.dom.btnHandRight) {
+            this.dom.btnHandRight.title = isUku
+                ? "Toggle Ukulele Melody / Picking Track On or Off (Shortcut: R)"
+                : "Toggle Right Hand / Upper Treble Staff On or Off (Shortcut: R)";
+        }
+        if (this.dom.shortcutsHandsLabel) {
+            this.dom.shortcutsHandsLabel.textContent = isUku ? "Tracks" : "Hands";
+        }
+        if (this.dom.fingerChip0) {
+            this.dom.fingerChip0.textContent = isUku ? "0" : "T";
+        }
+        if (this.dom.fingerLegendPill) {
+            this.dom.fingerLegendPill.title = isUku
+                ? "Ukulele Fretting Finger Palette — 0 = Open String (Sage) • 1 = Index (Gold) • 2 = Middle (Indigo) • 3 = Ring (Azure) • 4 = Pinky (Rose)"
+                : "Finger Color Scheme — Left Hand (L→R): 4 3 2 1 T • Right Hand (L→R): T 1 2 3 4\nT = Thumb (Green) • 1 = Index (Yellow) • 2 = Middle (Purple) • 3 = Ring (Blue) • 4 = Pinky (Coral)";
+        }
+        if (this.dom.btnPlayAlongToggle) {
+            this.dom.btnPlayAlongToggle.title = isUku
+                ? "Play-Along Ukulele Notes (ON/OFF): Plays or mutes guide ukulele tab notes at the playhead while Song Backing Music continues in your headphones"
+                : "Play-Along Piano Notes (ON/OFF): Plays or mutes guide piano notes at the playhead while Song Backing Music continues playing in your headphones";
+        }
+        if (this.dom.btnMicToggle) {
+            this.dom.btnMicToggle.title = isUku
+                ? "Turn On Acoustic Ukulele Microphone Listening (G-C-E-A Polyphonic + Chord Detector)"
+                : "Turn On Acoustic Piano Microphone Listening";
+        }
+        if (this.dom.btnOpenTrainer) {
+            this.dom.btnOpenTrainer.title = isUku
+                ? "Open 28-Step Ukulele Acoustic Data Collection & Calibration Trainer (G-C-E-A)"
+                : "Open 61-Key Sound & Data Collection Trainer (Keys #1 C2 to #61 C7)";
+        }
+        if (this.dom.tunerNote && this.dom.tunerNote.textContent === "--" && this.dom.tunerCents) {
+            this.dom.tunerCents.textContent = isUku ? "G·C·E·A" : "Calibrated";
+        }
+    }
+
+    setInstrument(instrument, { initial = false, skipToast = false } = {}) {
+        const next = instrument === "ukulele" ? "ukulele" : "piano";
+        if (!initial && next === this.activeInstrument) {
+            return;
+        }
+
+        // Persist current level selection for previous instrument
+        if (this.activeInstrument && this.selectedLevelByInstrument) {
+            this.selectedLevelByInstrument[this.activeInstrument] = this.selectedLevelNumber || 1;
+        }
+
+        // Pause playback & clear transient overlays cleanly
+        if (this.game && this.game.isPlaying) {
+            this.game.pause();
+            if (this.dom.playIcon) this.dom.playIcon.textContent = "▶";
+        }
+        this.closeCompletionModal();
+        if (!initial) {
+            this.clearToasts();
+        }
+
+        this.activeInstrument = next;
+        try {
+            if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.setItem === "function") {
+                localStorage.setItem(ACTIVE_INSTRUMENT_STORAGE_KEY, next);
+            }
+        } catch (_err) {}
+
+        if (typeof document !== "undefined" && document.body) {
+            document.body.dataset.instrument = next;
+        }
+
+        // Update active switcher pill states
+        if (this.dom.btnInstrumentPiano) {
+            const isPiano = next === "piano";
+            this.dom.btnInstrumentPiano.classList.toggle("active", isPiano);
+            this.dom.btnInstrumentPiano.setAttribute("aria-pressed", isPiano ? "true" : "false");
+        }
+        if (this.dom.btnInstrumentUkulele) {
+            const isUku = next === "ukulele";
+            this.dom.btnInstrumentUkulele.classList.toggle("active", isUku);
+            this.dom.btnInstrumentUkulele.setAttribute("aria-pressed", isUku ? "true" : "false");
+        }
+
+        // Swap active runtime references
+        this.progress = next === "ukulele" ? this.ukuleleProgress : this.pianoProgress;
+        this.synth = next === "ukulele" ? this.ukuleleSynth : this.pianoSynth;
+        this.renderer = next === "ukulele" ? this.ukuleleRenderer : this.pianoRenderer;
+        this.keyboard = next === "ukulele" ? this.ukuleleFretboard : this.pianoKeyboard;
+
+        // Apply current master volume slider to active synth
+        if (this.dom.volumeSlider && typeof this.synth?.setVolume === "function") {
+            const vol = parseInt(this.dom.volumeSlider.value, 10) / 100;
+            if (Number.isFinite(vol)) this.synth.setVolume(vol);
+        }
+
+        // Swap bottom interactive instrument dock (#pianoKeyboard vs #ukuleleFretboard)
+        if (this.keyboardContainer) {
+            this.keyboardContainer.style.display = next === "piano" ? "" : "none";
+        }
+        if (this.ukuleleFretboardEl) {
+            this.ukuleleFretboardEl.style.display = next === "ukulele" ? "block" : "none";
+        }
+
+        // Hot-swap GameEngine, Microphone Detector, and Acoustic Data Trainer
+        if (this.game && typeof this.game.setInstrumentContext === "function") {
+            this.game.setInstrumentContext({
+                instrument: next,
+                renderer: this.renderer,
+                keyboard: this.keyboard,
+                synth: this.synth
+            });
+        } else if (this.game) {
+            this.game.renderer = this.renderer;
+            this.game.keyboard = this.keyboard;
+            this.game.synth = this.synth;
+            this.game.instrument = next;
+        }
+
+        if (this.mic && typeof this.mic.setInstrument === "function") {
+            this.mic.setInstrument(next);
+        }
+        if (this.trainer && typeof this.trainer.setInstrument === "function") {
+            this.trainer.setInstrument(next, {
+                synth: this.synth,
+                keyboard: this.keyboard
+            });
+        }
+
+        // Restore selected level for target instrument
+        const cont = this.progress.getContinueLearning();
+        const fallbackLv = cont && cont.level
+            ? (typeof cont.level === "object" ? cont.level.level : Number(cont.level))
+            : 1;
+        this.selectedLevelNumber = this.selectedLevelByInstrument[next] || fallbackLv || 1;
+
+        this.updateInstrumentCopyUI();
+
+        // Reload active Studio content seamlessly when switching instruments
+        if (!initial) {
+            if (this.activeCurriculumPartId) {
+                const targetParts = this.getActiveAllCurriculumParts();
+                const targetContinue = this.progress.getContinueLearning();
+                const nextPartId = targetContinue?.part?.id || targetParts[0]?.part?.id || null;
+                if (this.currentView === "studio" && nextPartId) {
+                    this.startCurriculumPart(nextPartId);
+                } else {
+                    this.activeCurriculumPartId = null;
+                    const songId = this.currentRawSongId || this.dom.songSelect?.value || this.songs[0]?.id;
+                    if (songId) {
+                        this.loadSongById(songId, { activeHands: { left: true, right: true } });
+                    }
+                }
+            } else {
+                const songId = this.currentRawSongId || this.dom.songSelect?.value || this.songs[0]?.id;
+                if (songId) {
+                    this.loadSongById(songId, { activeHands: { left: true, right: true } });
+                }
+            }
+
+            this.refreshAllGamificationUI();
+            if (this.currentView === "studio") {
+                this.updateStudioCurriculumBar();
+                this._handleStudioResize();
+                this.game.renderCurrentFrame();
+            }
+
+            if (!skipToast) {
+                this.showToast(
+                    next === "ukulele"
+                        ? "Switched to Ukulele Studio (G-C-E-A)."
+                        : "Switched to 61-Key Piano Studio (C2–C7).",
+                    "info"
+                );
+            }
         }
     }
 
@@ -460,9 +891,11 @@ export class PianoApp {
 
     _resolvePartEntry(partId) {
         if (!partId) return null;
-        const found = getPartById(partId);
+        const isUku = this.activeInstrument === "ukulele" || String(partId).startsWith("uku_");
+        const found = isUku ? getUkulelePartById(partId) : getPartById(partId);
         if (!found || !found.part) return null;
 
+        const curriculum = isUku ? UKULELE_CURRICULUM : PIANO_CURRICULUM;
         let levelObj = null;
         let levelNum = 1;
         if (typeof found.level === "object" && found.level !== null) {
@@ -470,7 +903,7 @@ export class PianoApp {
             levelNum = found.level.level || 1;
         } else {
             levelNum = Number(found.level) || found.part.level || 1;
-            levelObj = PIANO_CURRICULUM.find((l) => l.level === levelNum) || { level: levelNum, title: `Level ${levelNum}` };
+            levelObj = curriculum.find((l) => l.level === levelNum) || { level: levelNum, title: `Level ${levelNum}` };
         }
         return {
             levelObj,
@@ -481,6 +914,13 @@ export class PianoApp {
     }
 
     startCurriculumPart(partId) {
+        const isUkuPart = String(partId || "").startsWith("uku_");
+        if (isUkuPart && this.activeInstrument !== "ukulele") {
+            this.setInstrument("ukulele", { skipToast: true });
+        } else if (!isUkuPart && this.activeInstrument === "ukulele") {
+            this.setInstrument("piano", { skipToast: true });
+        }
+
         const entry = this._resolvePartEntry(partId);
         if (!entry || !entry.part || !entry.part.song) {
             this.showToast("Curriculum part could not be found.", "error");
@@ -494,10 +934,13 @@ export class PianoApp {
 
         this.activeCurriculumPartId = entry.part.id;
         this.selectedLevelNumber = entry.levelNum;
-        this.progress.setLastPlayedPart(entry.part.id);
+        this.selectedLevelByInstrument[this.activeInstrument] = entry.levelNum;
+        this.getActiveProgress().setLastPlayedPart(entry.part.id);
 
         const partSong = entry.part.song;
-        PianoFingeringEngine.ensureSongFingering(partSong);
+        if (partSong.instrument !== "ukulele") {
+            PianoFingeringEngine.ensureSongFingering(partSong);
+        }
 
         const targetHands = entry.part.targetHands || { left: true, right: true };
         this.game.setTempoMultiplier(1.0);
@@ -567,7 +1010,8 @@ export class PianoApp {
             this.dom.studioContextLabel.title = `${entry.lesson?.title || ""} — ${entry.part.title}`;
         }
 
-        const nextEntry = getNextPart(entry.part.id);
+        const isUku = this.activeInstrument === "ukulele" || String(entry.part.id || "").startsWith("uku_");
+        const nextEntry = isUku ? getNextUkulelePart(entry.part.id) : getNextPart(entry.part.id);
         if (this.dom.btnStudioNextPart) {
             this.dom.btnStudioNextPart.disabled = !nextEntry;
             this.dom.btnStudioNextPart.title = nextEntry
@@ -679,15 +1123,18 @@ export class PianoApp {
     renderLearnView() {
         if (!this.dom.levelTabsRail || !this.dom.lessonsListContainer) return;
 
-        const currSummary = this.progress.getCurriculumSummary();
+        const isUku = this.isUkuleleMode();
+        const activeCurriculum = this.getActiveCurriculum();
+        const activeProgress = this.getActiveProgress();
+        const currSummary = activeProgress.getCurriculumSummary();
         if (this.dom.learnOverallSummary) {
             this.dom.learnOverallSummary.textContent =
                 `${currSummary.completedLevels}/${currSummary.totalLevels} Levels · ${currSummary.completedParts}/${currSummary.totalParts} Parts · ${currSummary.earnedStars} ★`;
         }
 
         // 1. Render Level 1–9 Tabs Rail
-        this.dom.levelTabsRail.innerHTML = PIANO_CURRICULUM.map((lv) => {
-            const lvProg = this.progress.getLevelProgress(lv.level);
+        this.dom.levelTabsRail.innerHTML = activeCurriculum.map((lv) => {
+            const lvProg = activeProgress.getLevelProgress(lv.level);
             const isSelected = lv.level === this.selectedLevelNumber;
             const ringLabel = lvProg.completed ? "✓" : `${lvProg.progressPercent}%`;
             const shortTabTitle = String(lv.title || "")
@@ -713,10 +1160,10 @@ export class PianoApp {
         }).join("");
 
         // 2. Render Selected Level Banner
-        const activeLevelObj = PIANO_CURRICULUM.find((l) => l.level === this.selectedLevelNumber) || PIANO_CURRICULUM[0];
+        const activeLevelObj = activeCurriculum.find((l) => l.level === this.selectedLevelNumber) || activeCurriculum[0];
         if (!activeLevelObj) return;
 
-        const lvProg = this.progress.getLevelProgress(activeLevelObj.level);
+        const lvProg = activeProgress.getLevelProgress(activeLevelObj.level);
         if (this.dom.selectedLevelNumberBadge) {
             this.dom.selectedLevelNumberBadge.textContent = lvProg.completed
                 ? `Level ${activeLevelObj.level} · Complete ✓`
@@ -745,7 +1192,7 @@ export class PianoApp {
         // 3. Render Lessons & Multi-Part Rows
         const lessons = Array.isArray(activeLevelObj.lessons) ? activeLevelObj.lessons : [];
         this.dom.lessonsListContainer.innerHTML = lessons.map((lesson, idx) => {
-            const lProg = this.progress.getLessonProgress(lesson.id);
+            const lProg = activeProgress.getLessonProgress(lesson.id);
             const isCollapsed = this.collapsedLessonIds.has(lesson.id);
             const orderStr = String(lesson.order || idx + 1).padStart(2, "0");
             const focusLabel = lesson.modeFocus === "solo"
@@ -760,7 +1207,7 @@ export class PianoApp {
                 : `${lProg.completedParts}/${lProg.totalParts} Parts · ★ ${lProg.stars}/${lProg.maxStars}`;
 
             const partsHtml = (lesson.parts || []).map((part) => {
-                const pProg = this.progress.getPartProgress(part.id);
+                const pProg = activeProgress.getPartProgress(part.id);
                 const pTypeLabel = part.partType === "solo"
                     ? "Solo"
                     : (part.partType === "chords" ? "Chords" : "Combined");
@@ -769,7 +1216,9 @@ export class PianoApp {
                     : (part.partType === "chords" ? "type-chords" : "type-combined");
 
                 const hands = part.targetHands || { left: true, right: true };
-                const handTag = hands.left && hands.right ? "LH+RH" : (hands.left ? "LH" : "RH");
+                const handTag = isUku
+                    ? (hands.left && hands.right ? "Chords+Melody" : (hands.left ? "Chords" : "Melody"))
+                    : (hands.left && hands.right ? "LH+RH" : (hands.left ? "LH" : "RH"));
                 const keySig = part.song?.keySignature || "C";
                 const bpm = Math.round(part.song?.bpm || 90);
                 const accDisplay = pProg.bestAccuracy > 0
@@ -886,6 +1335,7 @@ export class PianoApp {
             return;
         }
 
+        const isUku = this.isUkuleleMode();
         this.dom.songsGridContainer.innerHTML = filtered.map((song) => {
             const prog = this.progress.getSongProgress(song.id);
             const ts = Array.isArray(song.timeSignature) && song.timeSignature.length === 2
@@ -894,7 +1344,7 @@ export class PianoApp {
             const keySig = song.keySignature || "C";
             const bpm = Math.round(song.bpm || 100);
             const noteCount = Array.isArray(song.notes) ? song.notes.length : 0;
-            const texture = this._describeSongTexture(song);
+            const texture = isUku ? "4-String Tab + Chords" : this._describeSongTexture(song);
 
             const bestText = prog.bestAccuracy > 0
                 ? `Best Accuracy: <strong>${Math.round(prog.bestAccuracy)}%</strong>`
@@ -956,10 +1406,10 @@ export class PianoApp {
                 const lessonOrd = entry.lesson?.order || 1;
                 eyebrowText = `Level ${entry.levelNum} · Lesson ${lessonOrd} · Part ${entry.part.partNumber} Complete`;
                 titleText = entry.part.title;
-                nextPartEntry = getNextPart(entry.part.id);
+                nextPartEntry = this.getActiveNextPart(entry.part.id);
             }
         } else {
-            const songId = summary.song?.id || "custom_piece";
+            const songId = this.currentRawSongId || summary.song?.id || "custom_piece";
             result = this.progress.recordSongCompletion(songId, summary);
         }
 
@@ -1045,8 +1495,10 @@ export class PianoApp {
     }
 
     bindNavigationAndCatalogEvents() {
-        // Header Brand & Primary View Switcher
+        // Header Brand, Instrument Switcher & Primary View Switcher
         this.dom.btnBrandHome?.addEventListener("click", () => this.switchView("home"));
+        this.dom.btnInstrumentPiano?.addEventListener("click", () => this.setInstrument("piano"));
+        this.dom.btnInstrumentUkulele?.addEventListener("click", () => this.setInstrument("ukulele"));
         this.dom.navBtnHome?.addEventListener("click", () => this.switchView("home"));
         this.dom.navBtnLearn?.addEventListener("click", () => this.switchView("learn"));
         this.dom.navBtnSongs?.addEventListener("click", () => this.switchView("songs"));
@@ -1059,7 +1511,7 @@ export class PianoApp {
         this.dom.btnBackToLearn?.addEventListener("click", () => this.switchView("learn"));
         this.dom.btnStudioNextPart?.addEventListener("click", () => {
             if (!this.activeCurriculumPartId) return;
-            const next = getNextPart(this.activeCurriculumPartId);
+            const next = this.getActiveNextPart(this.activeCurriculumPartId);
             if (next && next.part) {
                 this.startCurriculumPart(next.part.id);
             }
@@ -1081,11 +1533,11 @@ export class PianoApp {
 
         // Home View Hero & Quick-Utility Actions
         const launchContinueLesson = () => {
-            const target = this.progress.getContinueLearning();
+            const target = this.getActiveProgress().getContinueLearning();
             if (target && target.part) {
                 this.startCurriculumPart(target.part.id);
             } else {
-                const allParts = getAllCurriculumParts();
+                const allParts = this.getActiveAllCurriculumParts();
                 if (allParts.length > 0) {
                     this.startCurriculumPart(allParts[0].part.id);
                 } else {
@@ -1123,6 +1575,7 @@ export class PianoApp {
             const tabBtn = e.target.closest("[data-level-num]");
             if (!tabBtn) return;
             this.selectedLevelNumber = Number(tabBtn.dataset.levelNum) || 1;
+            this.selectedLevelByInstrument[this.activeInstrument] = this.selectedLevelNumber;
             this.renderLearnView();
         });
 
@@ -1236,19 +1689,22 @@ export class PianoApp {
        ====================================================================== */
 
     loadSongById(songId, options = {}) {
-        const song = this.songs.find((s) => s.id === songId) || this.songs[0];
-        if (!song) return;
+        const rawSong = this.songs.find((s) => s.id === songId) || this.songs[0];
+        if (!rawSong) return;
 
-        PianoFingeringEngine.ensureSongFingering(song);
+        this.currentRawSongId = rawSong.id;
+        const playableSong = this.getPlayableSongForInstrument(rawSong, this.activeInstrument);
+        if (!playableSong) return;
+
         if (this.dom.songSelect) {
-            this.dom.songSelect.title = song.artist ? `${song.title} — ${song.artist}` : song.title;
+            this.dom.songSelect.title = rawSong.artist ? `${rawSong.title} — ${rawSong.artist}` : rawSong.title;
         }
         this.game.setTempoMultiplier(1.0);
-        this.game.loadSong(song, options);
+        this.game.loadSong(playableSong, options);
         this.updateHandToggleUI(this.game.getActiveHands());
 
         if (this.dom.tempoSlider) {
-            this.dom.tempoSlider.value = Math.round(song.bpm || 100);
+            this.dom.tempoSlider.value = Math.round(playableSong.bpm || 100);
         }
         if (this.dom.presetPills) {
             this.dom.presetPills.forEach((p) => {
@@ -1298,8 +1754,37 @@ export class PianoApp {
         }
     }
 
-    updateTunerUI(midi, cents = 0, conf = 0, activeNotes = null) {
+    updateTunerUI(midi, cents = 0, conf = 0, activeNotes = null, extra = null) {
         if (!this.dom.tunerNote || !this.dom.tunerCents) return;
+        const isUku = this.isUkuleleMode();
+
+        if (isUku) {
+            const detectedChord = extra && extra.detectedChord ? String(extra.detectedChord) : null;
+            if (!midi && (!Array.isArray(activeNotes) || activeNotes.length === 0)) {
+                this.dom.tunerNote.textContent = "--";
+                this.dom.tunerCents.textContent = "G·C·E·A";
+                return;
+            }
+            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const primaryMidi = midi || activeNotes[0]?.midi || 69;
+            const name = noteNames[((primaryMidi % 12) + 12) % 12];
+            const oct = Math.floor(primaryMidi / 12) - 1;
+            const sign = cents >= 0 ? "+" : "";
+
+            if (detectedChord) {
+                this.dom.tunerNote.textContent = detectedChord;
+                this.dom.tunerCents.textContent = `${name}${oct} ${sign}${Math.round(cents)}¢`;
+            } else if (Array.isArray(activeNotes) && activeNotes.length > 1) {
+                const label = activeNotes.slice(0, 4).map((n) => n.noteName).join("+");
+                this.dom.tunerNote.textContent = activeNotes.length > 4 ? `${label}…` : label;
+                this.dom.tunerCents.textContent = `${activeNotes.length} notes`;
+            } else {
+                this.dom.tunerNote.textContent = `${name}${oct}`;
+                this.dom.tunerCents.textContent = `${sign}${Math.round(cents)}¢`;
+            }
+            return;
+        }
+
         if (Array.isArray(activeNotes) && activeNotes.length > 1) {
             const label = activeNotes.slice(0, 4).map((n) => n.noteName).join("+");
             this.dom.tunerNote.textContent = activeNotes.length > 4 ? `${label}…` : label;
@@ -1323,14 +1808,32 @@ export class PianoApp {
 
     handleDetectedPitch(result) {
         const activeNotes = result.activeNotes || [];
+        const detectedChord = result.detectedChord || result.chordLabel || null;
+
         if (result.silence || (!result.midi && activeNotes.length === 0)) {
             if (this.dom.tunerNote && this.dom.tunerNote.textContent !== "--") {
                 this.updateTunerUI(null);
             }
+            if (this.game && typeof this.game.setTunerState === "function") {
+                this.game.setTunerState(this.mic?.isListening ? { active: true, midi: null, cents: 0 } : null);
+            }
             return;
         }
 
-        this.updateTunerUI(result.midi, result.cents, result.confidence, activeNotes);
+        const centsVal = Number.isFinite(result.centsOff) ? result.centsOff : (result.cents || 0);
+        this.updateTunerUI(result.midi, centsVal, result.confidence, activeNotes, { detectedChord });
+
+        if (this.game && typeof this.game.setTunerState === "function") {
+            this.game.setTunerState({
+                active: true,
+                midi: result.midi || activeNotes[0]?.midi || null,
+                noteName: result.tunerNote?.name || result.noteName || null,
+                cents: centsVal,
+                confidence: result.confidence || 0,
+                detectedChord,
+                activeNotes
+            });
+        }
 
         if (Array.isArray(result.onsetNotes) && result.onsetNotes.length > 0) {
             const onsetMidis = result.onsetNotes.map((n) => n.midi);
@@ -1345,11 +1848,17 @@ export class PianoApp {
         if (status === "listening") {
             this.dom.btnMicToggle.classList.add("listening");
             this.dom.micStatusText.textContent = "Listening";
+            if (this.game && typeof this.game.setTunerState === "function") {
+                this.game.setTunerState({ active: true, midi: null, cents: 0 });
+            }
         } else {
             this.dom.btnMicToggle.classList.remove("listening");
             this.dom.micStatusText.textContent = "Enable Mic";
             this.updateVuMeter(0);
             this.updateTunerUI(null);
+            if (this.game && typeof this.game.setTunerState === "function") {
+                this.game.setTunerState(null);
+            }
         }
     }
 
@@ -1402,8 +1911,11 @@ export class PianoApp {
     }
 
     async toggleMicrophone() {
-        this.synth.init();
-        this.mic.setAudioContext(this.synth.ctx);
+        this.pianoSynth.init();
+        if (this.ukuleleSynth && this.pianoSynth.ctx && typeof this.ukuleleSynth.attachContext === "function") {
+            this.ukuleleSynth.attachContext(this.pianoSynth.ctx);
+        }
+        this.mic.setAudioContext(this.pianoSynth.ctx);
 
         if (this.mic.isListening) {
             this.mic.stop();
@@ -1421,6 +1933,12 @@ export class PianoApp {
             this.songs[existingIdx] = newSong;
         } else {
             this.songs.unshift(newSong);
+        }
+        // Invalidate any cached ukulele arrangement for this song ID
+        for (const k of Array.from(this._ukuleleSongCache.keys())) {
+            if (k.startsWith(`${newSong.id}:`)) {
+                this._ukuleleSongCache.delete(k);
+            }
         }
 
         this.activeCurriculumPartId = null;
@@ -1570,7 +2088,7 @@ export class PianoApp {
             this.game.setMetronome(active);
         });
 
-        // Play-Along Piano Guide Notes Toggle (Song Backing Music continues playing in headphones!)
+        // Play-Along Guide Notes Toggle (Song Backing Music continues playing in headphones!)
         this.dom.btnPlayAlongToggle?.addEventListener("click", () => {
             this.synth.init();
             const isActive = this.dom.btnPlayAlongToggle.classList.toggle("active");
@@ -1578,10 +2096,11 @@ export class PianoApp {
             if (this.dom.playAlongBadge) {
                 this.dom.playAlongBadge.textContent = isActive ? "ON" : "OFF";
             }
+            const instWord = this.isUkuleleMode() ? "ukulele" : "piano";
             this.showToast(
                 isActive
-                    ? "Play-Along piano notes ON."
-                    : "Play-Along piano notes OFF — headphone backing music stays active.",
+                    ? `Play-Along ${instWord} notes ON.`
+                    : `Play-Along ${instWord} notes OFF — headphone backing music stays active.`,
                 "info"
             );
         });
@@ -1608,10 +2127,13 @@ export class PianoApp {
             }
         });
 
-        // Piano Synth Volume slider
+        // Instrument Synth Volume slider (kept synchronized across Piano & Ukulele synths)
         this.dom.volumeSlider?.addEventListener("input", (e) => {
             const vol = parseInt(e.target.value, 10) / 100;
-            this.synth.setVolume(vol);
+            this.pianoSynth.setVolume(vol);
+            if (this.ukuleleSynth && typeof this.ukuleleSynth.setVolume === "function") {
+                this.ukuleleSynth.setVolume(vol);
+            }
         });
 
         // Acoustic Sound & Data Collection Trainer
@@ -1888,6 +2410,18 @@ export class PianoApp {
             } else if (e.code === "KeyR") {
                 e.preventDefault();
                 this.toggleHandPractice("right");
+            } else if (e.code === "KeyM") {
+                e.preventDefault();
+                if (this.dom.btnMetronome) {
+                    const active = this.dom.btnMetronome.classList.toggle("active");
+                    this.game.setMetronome(active);
+                }
+            } else if (this.isUkuleleMode() && !e.repeat && UKULELE_KEY_MAP[e.code]) {
+                e.preventDefault();
+                const mapped = UKULELE_KEY_MAP[e.code];
+                this.ukuleleSynth.init();
+                this.ukuleleSynth.playNote(mapped.midi, 0.55, 0.85, mapped);
+                this.game.handleUserInputNote(mapped.midi, true);
             }
         });
     }

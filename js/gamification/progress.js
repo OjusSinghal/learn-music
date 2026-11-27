@@ -8,6 +8,7 @@
 import { PIANO_CURRICULUM } from "../curriculum/index.js";
 
 const DEFAULT_STORAGE_KEY = "yousician_piano_progress_v1";
+const UKULELE_STORAGE_KEY = "yousician_ukulele_progress_v1";
 const IN_MEMORY_FALLBACK_STORE = new Map();
 
 export const PIANIST_RANKS = [
@@ -17,6 +18,15 @@ export const PIANIST_RANKS = [
     { rank: 4, id: "harmonist", title: "Harmonist", minXp: 1300 },
     { rank: 5, id: "virtuoso", title: "Virtuoso", minXp: 2400 },
     { rank: 6, id: "concert_master", title: "Concert Master", minXp: 4000 }
+];
+
+export const UKULELE_RANKS = [
+    { rank: 1, id: "open_string_novice", title: "Open-String Novice", minXp: 0 },
+    { rank: 2, id: "strum_apprentice", title: "Strum Apprentice", minXp: 250 },
+    { rank: 3, id: "island_groover", title: "Island Groover", minXp: 650 },
+    { rank: 4, id: "fretboard_stylist", title: "Fretboard Stylist", minXp: 1300 },
+    { rank: 5, id: "chord_melody_artist", title: "Chord-Melody Artist", minXp: 2400 },
+    { rank: 6, id: "conservatory_ukulelist", title: "Conservatory Ukulelist", minXp: 4000 }
 ];
 
 export const ACHIEVEMENT_DEFINITIONS = [
@@ -59,6 +69,49 @@ export const ACHIEVEMENT_DEFINITIONS = [
         id: "concert_repertoire",
         title: "Concert Repertoire",
         description: "Complete 3 full song play-along arrangements."
+    }
+];
+
+export const UKULELE_ACHIEVEMENT_DEFINITIONS = [
+    {
+        id: "first_steps",
+        title: "First Steps",
+        description: "Complete your first ukulele lesson part or song play-along."
+    },
+    {
+        id: "chord_explorer",
+        title: "Chord Strummer",
+        description: "Complete a Chords & Strumming study part or chordal piece."
+    },
+    {
+        id: "two_hand_harmony",
+        title: "Chord-Melody Flow",
+        description: "Complete a combined chord-melody piece with both lanes active."
+    },
+    {
+        id: "precision_95",
+        title: "95%+ Precision",
+        description: "Finish any ukulele lesson part or song with 95% or higher accuracy."
+    },
+    {
+        id: "golden_touch",
+        title: "Golden Touch",
+        description: "Earn 3 stars on 5 different ukulele parts or songs."
+    },
+    {
+        id: "streak_3",
+        title: "Dedicated Ukulelist",
+        description: "Practice on 3 consecutive days."
+    },
+    {
+        id: "level_complete",
+        title: "Level Complete",
+        description: "Complete every lesson and part in a full ukulele curriculum level."
+    },
+    {
+        id: "concert_repertoire",
+        title: "Island Repertoire",
+        description: "Complete 3 full ukulele song play-along arrangements."
     }
 ];
 
@@ -133,9 +186,16 @@ export class ProgressManager {
     static STORAGE_KEY = DEFAULT_STORAGE_KEY;
 
     constructor(options = {}) {
-        this.storageKey = options.storageKey || DEFAULT_STORAGE_KEY;
+        this.instrument = options.instrument === "ukulele" ? "ukulele" : "piano";
+        this.storageKey = options.storageKey || (this.instrument === "ukulele" ? UKULELE_STORAGE_KEY : DEFAULT_STORAGE_KEY);
         this.storage = resolveStorageBackend(options.storage || null);
         this.curriculum = Array.isArray(options.curriculum) ? options.curriculum : PIANO_CURRICULUM;
+        this.ranks = Array.isArray(options.ranks) && options.ranks.length > 0
+            ? options.ranks
+            : (this.instrument === "ukulele" ? UKULELE_RANKS : PIANIST_RANKS);
+        this.achievementDefinitions = Array.isArray(options.achievements) && options.achievements.length > 0
+            ? options.achievements
+            : (this.instrument === "ukulele" ? UKULELE_ACHIEVEMENT_DEFINITIONS : ACHIEVEMENT_DEFINITIONS);
         this.onChange = typeof options.onChange === "function" ? options.onChange : null;
 
         this._partIndex = new Map();
@@ -486,7 +546,7 @@ export class ProgressManager {
         const unlock = (id) => {
             if (!this.state.achievements[id]) {
                 this.state.achievements[id] = { unlocked: true, unlockedAt: nowIso };
-                const def = ACHIEVEMENT_DEFINITIONS.find((a) => a.id === id);
+                const def = this.achievementDefinitions.find((a) => a.id === id);
                 if (def) newlyUnlocked.push({ ...def, unlocked: true, unlockedAt: nowIso });
             }
         };
@@ -913,14 +973,15 @@ export class ProgressManager {
 
     getRankInfo(xp = this.state.totalXp) {
         const safeXp = Math.max(0, Math.round(Number(xp) || 0));
+        const rankList = Array.isArray(this.ranks) && this.ranks.length > 0 ? this.ranks : PIANIST_RANKS;
         let currentIdx = 0;
-        for (let i = 0; i < PIANIST_RANKS.length; i++) {
-            if (safeXp >= PIANIST_RANKS[i].minXp) {
+        for (let i = 0; i < rankList.length; i++) {
+            if (safeXp >= rankList[i].minXp) {
                 currentIdx = i;
             }
         }
-        const current = PIANIST_RANKS[currentIdx];
-        const next = PIANIST_RANKS[currentIdx + 1] || null;
+        const current = rankList[currentIdx];
+        const next = rankList[currentIdx + 1] || null;
 
         if (!next) {
             return {
@@ -971,7 +1032,7 @@ export class ProgressManager {
     }
 
     getAchievements() {
-        return ACHIEVEMENT_DEFINITIONS.map((def) => {
+        return this.achievementDefinitions.map((def) => {
             const unlockedRec = this.state.achievements[def.id];
             return {
                 ...def,
@@ -1109,6 +1170,7 @@ export class ProgressManager {
         const continueLearning = this.getContinueLearning();
 
         return {
+            instrument: this.instrument,
             totalXp: this.state.totalXp,
             rank,
             streak,

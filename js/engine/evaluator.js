@@ -11,8 +11,10 @@ export class NoteEvaluator {
         this.mode = options.mode || "flow"; // "flow" | "wait"
         this.perfectWindowSec = 0.14; // +/- 140ms
         this.goodWindowSec = 0.28;    // +/- 280ms
+        // Ukulele multi-string strum arpeggio stagger tolerance (95ms across strings of one strum)
+        this.strumStaggerToleranceSec = 0.095;
 
-        // Independent Left Hand (lower / bass) & Right Hand (upper / treble) toggles
+        // Independent Left Hand (lower / bass / ukulele chords) & Right Hand (upper / treble / ukulele melody) toggles
         this.activeHands = {
             left: options.leftHand !== undefined ? Boolean(options.leftHand) : true,
             right: options.rightHand !== undefined ? Boolean(options.rightHand) : true
@@ -40,14 +42,86 @@ export class NoteEvaluator {
     }
 
     /**
-     * Resolves which hand ("left" = lower/bass staff, "right" = upper/treble staff) owns a score note.
+     * Resolves which hand ("left" = lower/bass staff or ukulele chords, "right" = upper/treble staff or ukulele melody) owns a score note.
      */
     static getNoteHand(note) {
         if (!note) return "right";
         if (note.hand === "left" || note.hand === "right") return note.hand;
+        if (note.lane === "chords") return "left";
+        if (note.lane === "melody") return "right";
         if (note.clef === "bass") return "left";
         if (note.clef === "treble") return "right";
         return note.pitch >= 60 ? "right" : "left";
+    }
+
+    /**
+     * Returns true when the loaded piece is a Ukulele song/arrangement.
+     */
+    isUkuleleSong() {
+        return Boolean(this.song && this.song.instrument === "ukulele");
+    }
+
+    /**
+     * Returns true if `note` belongs to a multi-string ukulele strum/chord cluster.
+     */
+    _isUkuleleStrumNote(note) {
+        if (!this.isUkuleleSong() || !note) return false;
+        if (note.chordGroupId || note.isChordNote) return true;
+        for (let i = 0; i < this.notes.length; i++) {
+            const other = this.notes[i];
+            if (other !== note && Math.abs(other.time - note.time) <= 0.055) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Finds simultaneous pending enabled-hand sibling notes sharing the exact same pitch
+     * (e.g., High-G ukulele unison chords like F [2,0,1,0], Am [2,0,0,0], G [0,2,3,2], D [2,2,2,0]
+     * where two physical strings ring the same MIDI pitch on one strum).
+     */
+    _findUkuleleUnisonSiblings(matchedNote) {
+        if (!this.isUkuleleSong() || !matchedNote) return [];
+        const siblings = [];
+        for (let i = 0; i < this.notes.length; i++) {
+            const sib = this.notes[i];
+            if (
+                sib === matchedNote ||
+                sib.state !== "pending" ||
+                sib.pitch !== matchedNote.pitch ||
+                !this.isNoteHandEnabled(sib)
+            ) {
+                continue;
+            }
+            const sameGroup = Boolean(matchedNote.chordGroupId && sib.chordGroupId === matchedNote.chordGroupId);
+            const simultaneous = Math.abs(sib.time - matchedNote.time) <= 0.055;
+            if (sameGroup || simultaneous) {
+                siblings.push(sib);
+            }
+        }
+        return siblings;
+    }
+
+    /**
+     * Returns the earliest hit timestamp of an already-hit sibling string in the same ukulele strum cluster.
+     */
+    _getStrumAnchorHitTime(cand) {
+        if (!this.isUkuleleSong() || !cand) return null;
+        const candHand = NoteEvaluator.getNoteHand(cand);
+        let earliestHit = null;
+        for (let i = 0; i < this.notes.length; i++) {
+            const n = this.notes[i];
+            if (n === cand || n.state !== "correct" || typeof n.hitTime !== "number") continue;
+            const sameGroup = Boolean(cand.chordGroupId && n.chordGroupId === cand.chordGroupId);
+            const simultaneousSameHand = Math.abs(n.time - cand.time) <= 0.055 && NoteEvaluator.getNoteHand(n) === candHand;
+            if (sameGroup || simultaneousSameHand) {
+                if (earliestHit === null || n.hitTime < earliestHit) {
+                    earliestHit = n.hitTime;
+                }
+            }
+        }
+        return earliestHit;
     }
 
     /**
@@ -299,13 +373,15 @@ export class NoteEvaluator {
             return true;
         }
 
-        // 2. Register guard when practicing a single hand individually
-        if (this.activeHands.left && !this.activeHands.right) {
-            const rightRegisterStart = Math.max(62, (this._maxLeftPitch ?? 59) + 5);
-            if (midi >= rightRegisterStart) return true;
-        } else if (this.activeHands.right && !this.activeHands.left) {
-            const leftRegisterEnd = Math.min(57, (this._minRightPitch ?? 60) - 5);
-            if (midi <= leftRegisterEnd) return true;
+        // 2. Register guard when practicing a single hand individually (Piano only — Ukulele melody & chords share C4–A5)
+        if (!this.isUkuleleSong()) {
+            if (this.activeHands.left && !this.activeHands.right) {
+                const rightRegisterStart = Math.max(62, (this._maxLeftPitch ?? 59) + 5);
+                if (midi >= rightRegisterStart) return true;
+            } else if (this.activeHands.right && !this.activeHands.left) {
+                const leftRegisterEnd = Math.min(57, (this._minRightPitch ?? 60) - 5);
+                if (midi <= leftRegisterEnd) return true;
+            }
         }
 
         return false;
@@ -335,26 +411,37 @@ export class NoteEvaluator {
             const matchedNote = pendingAtBeat.find((n) => n.pitch === playedMidi);
 
             if (matchedNote) {
-                matchedNote.state = "correct";
-                matchedNote.hitTime = currentTime;
-                matchedNote.hitQuality = "PERFECT";
+                const toCredit = [matchedNote];
+                if (this.isUkuleleSong()) {
+                    const unisonSiblings = this._findUkuleleUnisonSiblings(matchedNote);
+                    for (let s = 0; s < unisonSiblings.length; s++) {
+                        toCredit.push(unisonSiblings[s]);
+                    }
+                }
 
-                this.streak++;
-                this.multiplier = Math.min(4, Math.floor(this.streak / 4) + 1);
-                this.score += 100 * this.multiplier;
-                this.noteStats.perfect++;
+                for (let k = 0; k < toCredit.length; k++) {
+                    const hitNote = toCredit[k];
+                    hitNote.state = "correct";
+                    hitNote.hitTime = currentTime;
+                    hitNote.hitQuality = "PERFECT";
 
-                const itemRes = {
-                    status: "PERFECT",
-                    color: "#6EE7B7",
-                    note: matchedNote,
-                    playedMidi,
-                    isCorrect: true
-                };
-                results.push(itemRes);
-                hitMidis.push(playedMidi);
+                    this.streak++;
+                    this.multiplier = Math.min(4, Math.floor(this.streak / 4) + 1);
+                    this.score += 100 * this.multiplier;
+                    this.noteStats.perfect++;
 
-                if (this.onHit) this.onHit(matchedNote, "PERFECT", "#6EE7B7", 0);
+                    const itemRes = {
+                        status: "PERFECT",
+                        color: "#6EE7B7",
+                        note: hitNote,
+                        playedMidi,
+                        isCorrect: true
+                    };
+                    results.push(itemRes);
+                    if (k === 0) hitMidis.push(playedMidi);
+
+                    if (this.onHit) this.onHit(hitNote, "PERFECT", "#6EE7B7", 0);
+                }
             } else {
                 // Ignore if already hit at this chord beat, ringing from previous hit, or belonging to a disabled hand
                 const alreadyHitAtBeat = simultaneousNotes.some((n) => n.pitch === playedMidi);
@@ -421,12 +508,35 @@ export class NoteEvaluator {
         const results = [];
         const hitMidis = [];
         const wrongMidis = [];
+        const isUku = this.isUkuleleSong();
 
         for (const playedMidi of playedMidis) {
             const candidateNotes = this.notes.filter((n) => {
                 if (n.state !== "pending") return false;
                 if (!this.isNoteHandEnabled(n)) return false;
-                return Math.abs(currentTime - n.time) <= this.goodWindowSec;
+                const absDiff = Math.abs(currentTime - n.time);
+                if (absDiff <= this.goodWindowSec) return true;
+
+                // Ukulele strum stagger tolerance (<= 95ms across strings of a strummed chord cluster)
+                if (isUku && this._isUkuleleStrumNote(n)) {
+                    const anchorHit = this._getStrumAnchorHitTime(n);
+                    if (
+                        anchorHit !== null &&
+                        Math.abs(currentTime - anchorHit) <= this.strumStaggerToleranceSec &&
+                        absDiff <= this.goodWindowSec + this.strumStaggerToleranceSec
+                    ) {
+                        return true;
+                    }
+                    // Allow slight late strum-aggregation margin on trailing arpeggio strings
+                    if (
+                        anchorHit === null &&
+                        currentTime >= n.time - this.goodWindowSec &&
+                        currentTime <= n.time + this.goodWindowSec + 0.045
+                    ) {
+                        return true;
+                    }
+                }
+                return false;
             });
 
             // Match closest pending note of this exact pitch
@@ -444,10 +554,13 @@ export class NoteEvaluator {
 
             if (match) {
                 const timeDiff = currentTime - match.time;
-                const absDiff = Math.abs(timeDiff);
-
-                match.state = "correct";
-                match.hitTime = currentTime;
+                let absDiff = Math.abs(timeDiff);
+                if (isUku && this._isUkuleleStrumNote(match)) {
+                    const anchorHit = this._getStrumAnchorHitTime(match);
+                    if (anchorHit !== null && Math.abs(currentTime - anchorHit) <= this.strumStaggerToleranceSec) {
+                        absDiff = Math.min(absDiff, Math.abs(anchorHit - match.time));
+                    }
+                }
 
                 let hitStatus = "PERFECT";
                 let hitColor = "#6EE7B7";
@@ -457,28 +570,45 @@ export class NoteEvaluator {
                     hitStatus = timeDiff < 0 ? "EARLY" : "LATE";
                     hitColor = "#E2C98A";
                     points = 60;
-                    this.noteStats.good++;
-                } else {
-                    this.noteStats.perfect++;
                 }
 
-                match.hitQuality = hitStatus;
-                this.streak++;
-                this.multiplier = Math.min(4, Math.floor(this.streak / 4) + 1);
-                this.score += points * this.multiplier;
+                const toCredit = [match];
+                if (isUku) {
+                    const unisonSiblings = this._findUkuleleUnisonSiblings(match);
+                    for (let s = 0; s < unisonSiblings.length; s++) {
+                        toCredit.push(unisonSiblings[s]);
+                    }
+                }
 
-                const itemRes = {
-                    status: hitStatus,
-                    color: hitColor,
-                    note: match,
-                    playedMidi,
-                    deltaMs: Math.round(timeDiff * 1000),
-                    isCorrect: true
-                };
-                results.push(itemRes);
-                hitMidis.push(playedMidi);
+                for (let k = 0; k < toCredit.length; k++) {
+                    const hitNote = toCredit[k];
+                    hitNote.state = "correct";
+                    hitNote.hitTime = currentTime;
+                    hitNote.hitQuality = hitStatus;
 
-                if (this.onHit) this.onHit(match, hitStatus, hitColor, timeDiff);
+                    if (hitStatus === "PERFECT") {
+                        this.noteStats.perfect++;
+                    } else {
+                        this.noteStats.good++;
+                    }
+
+                    this.streak++;
+                    this.multiplier = Math.min(4, Math.floor(this.streak / 4) + 1);
+                    this.score += points * this.multiplier;
+
+                    const itemRes = {
+                        status: hitStatus,
+                        color: hitColor,
+                        note: hitNote,
+                        playedMidi,
+                        deltaMs: Math.round(timeDiff * 1000),
+                        isCorrect: true
+                    };
+                    results.push(itemRes);
+                    if (k === 0) hitMidis.push(playedMidi);
+
+                    if (this.onHit) this.onHit(hitNote, hitStatus, hitColor, timeDiff);
+                }
             } else {
                 // Ignore sustained notes from earlier hits, duplicate chord detections, or disabled-hand notes
                 if (
@@ -526,10 +656,14 @@ export class NoteEvaluator {
      */
     checkMissedNotes(currentTime) {
         if (this.mode === "wait") return;
+        const isUku = this.isUkuleleSong();
 
         this.notes.forEach((note) => {
             if (note.state === "pending") {
-                if (currentTime - note.time > this.goodWindowSec) {
+                const missWindow = (isUku && this._isUkuleleStrumNote(note))
+                    ? (this.goodWindowSec + this.strumStaggerToleranceSec)
+                    : this.goodWindowSec;
+                if (currentTime - note.time > missWindow) {
                     if (!this.isNoteHandEnabled(note)) {
                         note.state = "skipped";
                         return;

@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23E2E8F0%22 stroke-width=%221.6%22><rect x=%222%22 y=%224%22 width=%2220%22 height=%2216%22 rx=%223%22/><path d=%22M8 4v10M12 4v16M16 4v10M6 14h4M14 14h4%22/></svg>">
 </head>
-<body data-active-view="home">
+<body data-active-view="home" data-instrument="piano">
 
     <!-- App Top Navigation Header -->
     <header class="app-header">
@@ -24,8 +24,8 @@
                         <line x1="14" y1="13.5" x2="17" y2="13.5"></line>
                     </svg>
                 </span>
-                <span class="brand-title">Yousician <span class="brand-title-light">Piano</span></span>
-                <span class="stage-badge" title="Calibrated from your 28 WAV samples for 61-key polyphonic chord &amp; single-note detection (Key #1 C2 to Key #61 C7)">61-Key</span>
+                <span class="brand-title">Yousician <span id="brandInstrumentLabel" class="brand-title-light">Piano</span></span>
+                <span id="brandStageBadge" class="stage-badge" title="Calibrated from your 28 WAV samples for 61-key polyphonic chord &amp; single-note detection (Key #1 C2 to Key #61 C7)">61-Key</span>
             </button>
 
             <!-- Minimal Primary View Navigation -->
@@ -35,6 +35,12 @@
                 <button id="navBtnSongs" type="button" class="view-nav-pill" data-view="songs">Songs</button>
                 <button id="navBtnStudio" type="button" class="view-nav-pill" data-view="studio">Studio</button>
             </nav>
+
+            <!-- Instrument Mode Switcher: Piano | Ukulele -->
+            <div id="instrumentSwitcher" class="instrument-switcher" role="group" aria-label="Instrument">
+                <button id="btnInstrumentPiano" type="button" class="inst-switch-btn active" data-instrument="piano" aria-pressed="true" title="61-Key Piano Conservatory (C2–C7)">Piano</button>
+                <button id="btnInstrumentUkulele" type="button" class="inst-switch-btn" data-instrument="ukulele" aria-pressed="false" title="4-String High-G Ukulele Conservatory (G-C-E-A)">Ukulele</button>
+            </div>
         </div>
 
         <div class="header-right">
@@ -65,7 +71,7 @@
             <!-- Subtle Welcome & Mastery Strip -->
             <div class="home-mastery-strip">
                 <div class="mastery-rank-block">
-                    <span class="conservatory-eyebrow">61-Key Personal Conservatory · C2–C7</span>
+                    <span id="homeConservatoryEyebrow" class="conservatory-eyebrow">61-Key Personal Conservatory · C2–C7</span>
                     <div class="mastery-rank-row">
                         <span id="homeRankTitle" class="mastery-rank-title">Initiate</span>
                         <span id="homeXpLabel" class="mastery-xp-caption">0 / 250 XP to Apprentice</span>
@@ -121,7 +127,7 @@
 
                     <div class="hero-card-body">
                         <h1 class="hero-title">Learn</h1>
-                        <p class="hero-desc">
+                        <p id="homeLearnDesc" class="hero-desc">
                             Step-by-step conservatory progression from Middle C foundations to chord inversions, Alberti bass, 7th grooves, and two-hand mastery — pairing Solo &amp; Chords in every lesson.
                         </p>
                     </div>
@@ -151,7 +157,7 @@
 
                     <div class="hero-card-body">
                         <h2 class="hero-title">Songs</h2>
-                        <p class="hero-desc">
+                        <p id="homeSongsDesc" class="hero-desc">
                             Full 61-key repertoire and imported arrangements backed by warm stereo headphone accompaniment — toggle Play-Along piano notes ON or OFF while the song band plays on.
                         </p>
                     </div>
@@ -189,7 +195,7 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M2 12h3l2.5-6 4 12 3.5-9 2.5 3H22"></path>
                     </svg>
-                    <span>61-Key Acoustic Data Trainer</span>
+                    <span id="homeTrainerLabel">61-Key Acoustic Data Trainer</span>
                     <span id="homeTrainerBadge" class="utility-badge">0/28</span>
                 </button>
             </div>
@@ -208,9 +214,9 @@
         <div class="catalog-shell">
             <div class="catalog-header">
                 <div>
-                    <span class="conservatory-eyebrow">Structured Piano Syllabus · 61 Keys (C2–C7)</span>
-                    <h1 class="catalog-title">Learn Piano · Levels 1–9</h1>
-                    <p class="catalog-subtitle">Every lesson builds Solo melody fluency, Harmonic Chords, and Bimanual Performance with headphone backing tracks.</p>
+                    <span id="learnEyebrow" class="conservatory-eyebrow">Structured Piano Syllabus · 61 Keys (C2–C7)</span>
+                    <h1 id="learnTitle" class="catalog-title">Learn Piano · Levels 1–9</h1>
+                    <p id="learnSubtitle" class="catalog-subtitle">Every lesson builds Solo melody fluency, Harmonic Chords, and Bimanual Performance with headphone backing tracks.</p>
                 </div>
                 <div class="catalog-header-right">
                     <span id="learnOverallSummary" class="catalog-summary-pill">0 / 9 Levels · 0 Parts</span>
@@ -257,9 +263,9 @@
         <div class="catalog-shell">
             <div class="catalog-header">
                 <div>
-                    <span class="conservatory-eyebrow">Repertoire Library &amp; Headphone Accompaniment</span>
+                    <span id="songsEyebrow" class="conservatory-eyebrow">Repertoire Library &amp; Headphone Accompaniment</span>
                     <h1 class="catalog-title">Song Play-Alongs</h1>
-                    <p class="catalog-subtitle">Play full 61-key arrangements with stereo backing music in your headphones. Toggle guide piano notes anytime in Studio.</p>
+                    <p id="songsSubtitle" class="catalog-subtitle">Play full 61-key arrangements with stereo backing music in your headphones. Toggle guide piano notes anytime in Studio.</p>
                 </div>
                 <div class="catalog-header-right">
                     <span id="songsOverallSummary" class="catalog-summary-pill">0 Pieces · 0 ★</span>
@@ -367,16 +373,16 @@
                 </div>
 
                 <div id="studioRightHints" class="studio-right-hints">
-                    <div class="finger-legend-pill" title="Finger Color Scheme — Left Hand (L→R): 4 3 2 1 T • Right Hand (L→R): T 1 2 3 4&#10;T = Thumb (Green) • 1 = Index (Yellow) • 2 = Middle (Purple) • 3 = Ring (Blue) • 4 = Pinky (Coral)">
+                    <div id="fingerLegendPill" class="finger-legend-pill" title="Finger Color Scheme — Left Hand (L→R): 4 3 2 1 T • Right Hand (L→R): T 1 2 3 4&#10;T = Thumb (Green) • 1 = Index (Yellow) • 2 = Middle (Purple) • 3 = Ring (Blue) • 4 = Pinky (Coral)">
                         <span class="finger-legend-title">Fingers</span>
-                        <span class="finger-chip chip-thumb">T</span>
+                        <span id="fingerChip0" class="finger-chip chip-thumb">T</span>
                         <span class="finger-chip chip-index">1</span>
                         <span class="finger-chip chip-middle">2</span>
                         <span class="finger-chip chip-ring">3</span>
                         <span class="finger-chip chip-pinky">4</span>
                     </div>
                     <span class="header-shortcuts-hint">
-                        <kbd>Space</kbd> Play <span class="hint-sep">·</span> <kbd>L</kbd><kbd>R</kbd> Hands
+                        <kbd>Space</kbd> Play <span class="hint-sep">·</span> <kbd>L</kbd><kbd>R</kbd> <span id="shortcutsHandsLabel">Hands</span>
                     </span>
                 </div>
             </div>
@@ -387,9 +393,10 @@
             <canvas id="yousicianCanvas"></canvas>
         </main>
 
-        <!-- Interactive On-Screen Piano Keyboard -->
+        <!-- Interactive On-Screen Instrument Dock (61-Key Piano Keyboard / 4-String Ukulele Fretboard) -->
         <section class="keyboard-section">
             <div id="pianoKeyboard"></div>
+            <div id="ukuleleFretboard" class="ukulele-fretboard-host" style="display: none;"></div>
         </section>
 
         <!-- Bottom 2-Row Playback & Practice Studio Deck -->
@@ -423,16 +430,16 @@
                         <button id="btnModeWait" type="button" class="btn-mode" title="Wait Mode: Pauses gently at each note or chord until played">Wait</button>
                     </div>
 
-                    <!-- Hand Practice Toggles: Left Hand (Lower/Bass) & Right Hand (Upper/Treble) -->
+                    <!-- Hand / Lane Practice Toggles: Left Hand / Chords & Right Hand / Melody -->
                     <div class="hand-switch-group" role="group" aria-label="Toggle Left and Right Hand Practice">
                         <button id="btnHandLeft" type="button" class="btn-hand hand-left active" aria-pressed="true" title="Toggle Left Hand / Lower Bass Staff On or Off (Shortcut: L)">
                             <span class="hand-key-pill">L</span>
-                            <span class="hand-label">Left</span>
+                            <span id="handLeftLabel" class="hand-label">Left</span>
                             <span id="handLeftBadge" class="hand-status-badge">ON</span>
                         </button>
                         <button id="btnHandRight" type="button" class="btn-hand hand-right active" aria-pressed="true" title="Toggle Right Hand / Upper Treble Staff On or Off (Shortcut: R)">
                             <span class="hand-key-pill">R</span>
-                            <span class="hand-label">Right</span>
+                            <span id="handRightLabel" class="hand-label">Right</span>
                             <span id="handRightBadge" class="hand-status-badge">ON</span>
                         </button>
                     </div>

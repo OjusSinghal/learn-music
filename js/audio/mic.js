@@ -1,12 +1,15 @@
 /**
- * Microphone Audio Stream & Calibrated 61-Key Polyphonic Piano Listener
- * =====================================================================
- * Manages Web Audio MediaStream, 52Hz high-pass rumble filter, off-main-thread
+ * Microphone Audio Stream & Multi-Instrument Polyphonic Listener (Piano & Ukulele)
+ * ==============================================================================
+ * Manages Web Audio MediaStream, instrument-adaptive high-pass rumble filter
+ * (52 Hz Piano / 180 Hz High-G Ukulele / 135 Hz Low-G Ukulele), off-main-thread
  * AudioWorklet frame capture (with seamless AnalyserNode fallback), and dispatches
- * polyphonic chord/note detections from CalibratedPolyphonicDetector.
+ * polyphonic chord/note/tuner detections from CalibratedPolyphonicDetector or
+ * UkulelePolyphonicDetector.
  */
 
 import { CalibratedPolyphonicDetector } from "./polyphonic_detector.js";
+import { UkulelePolyphonicDetector } from "./ukulele_detector.js";
 
 export class PianoMicrophone {
     constructor(audioContext = null, options = {}) {
@@ -27,17 +30,74 @@ export class PianoMicrophone {
         this.workletModuleLoaded = false;
         this.animationId = null;
 
-        // Calibrated 61-key polyphonic + score-informed detector
-        this.polyDetector = new CalibratedPolyphonicDetector({
-            sampleRate: this.ctx ? this.ctx.sampleRate : 48000
-        });
+        const sr = this.ctx ? this.ctx.sampleRate : (options.sampleRate || 48000);
+        this.instrument = options.instrument === "ukulele" ? "ukulele" : "piano";
+        this.ukuleleTuning = options.tuning === "low-g" ? "low-g" : "high-g";
+        this._sensitivity = typeof options.sensitivity === "number" ? options.sensitivity : 0.75;
 
-        // Callbacks
-        this.onPitch = options.onPitch || null;
+        // Dual instrument polyphonic detectors (shared audio pipeline, instant hot-swap)
+        this.pianoDetector = new CalibratedPolyphonicDetector({ sampleRate: sr });
+        this.ukuleleDetector = new UkulelePolyphonicDetector({
+            sampleRate: sr,
+            tuning: this.ukuleleTuning
+        });
+        this.pianoDetector.setSensitivity(this._sensitivity);
+        this.ukuleleDetector.setSensitivity(this._sensitivity);
+
+        this.polyDetector = this.instrument === "ukulele" ? this.ukuleleDetector : this.pianoDetector;
+
+        // Callbacks (supports both onPitch and onPitchUpdate aliases)
+        this.onPitch = options.onPitch || options.onPitchUpdate || null;
+        this.onPitchUpdate = options.onPitchUpdate || null;
         this.onVolume = options.onVolume || null;
         this.onStatusChange = options.onStatusChange || null;
         this.onError = options.onError || null;
         this.getExpectedMidis = options.getExpectedMidis || null;
+    }
+
+    _getTargetHpfHz() {
+        if (this.instrument === "ukulele") {
+            return this.ukuleleTuning === "low-g" ? 135 : 180;
+        }
+        return 52;
+    }
+
+    _applyLiveHpf() {
+        if (this.filter && this.ctx) {
+            try {
+                this.filter.frequency.setValueAtTime(this._getTargetHpfHz(), this.ctx.currentTime);
+            } catch (e) {}
+        }
+    }
+
+    getInstrument() {
+        return this.instrument;
+    }
+
+    setInstrument(instrument, { tuning } = {}) {
+        const nextInst = instrument === "ukulele" ? "ukulele" : "piano";
+        if (tuning === "low-g" || tuning === "high-g") {
+            this.ukuleleTuning = tuning;
+            this.ukuleleDetector.setTuning(tuning);
+        }
+        this.instrument = nextInst;
+        this.polyDetector = this.instrument === "ukulele" ? this.ukuleleDetector : this.pianoDetector;
+        if (this.ctx && this.ctx.sampleRate) {
+            this.polyDetector.setSampleRate(this.ctx.sampleRate);
+        }
+        this.polyDetector.setSensitivity(this._sensitivity);
+        this.polyDetector.resetState();
+        this._applyLiveHpf();
+        return this.instrument;
+    }
+
+    setUkuleleTuning(tuning) {
+        const nextTuning = tuning === "low-g" ? "low-g" : "high-g";
+        this.ukuleleTuning = this.ukuleleDetector.setTuning(nextTuning);
+        if (this.instrument === "ukulele") {
+            this._applyLiveHpf();
+        }
+        return this.ukuleleTuning;
     }
 
     setAudioContext(ctx) {
@@ -45,19 +105,32 @@ export class PianoMicrophone {
             this.ctx = ctx;
             this.workletModuleLoaded = false;
         }
-        if (ctx && this.polyDetector) {
-            this.polyDetector.setSampleRate(ctx.sampleRate);
+        if (ctx && ctx.sampleRate) {
+            if (this.pianoDetector) this.pianoDetector.setSampleRate(ctx.sampleRate);
+            if (this.ukuleleDetector) this.ukuleleDetector.setSampleRate(ctx.sampleRate);
         }
     }
 
     setSensitivity(level) {
         // level: 0 to 1 (default 0.75)
-        this.polyDetector.setSensitivity(level);
+        this._sensitivity = level;
+        if (this.pianoDetector) this.pianoDetector.setSensitivity(level);
+        if (this.ukuleleDetector) this.ukuleleDetector.setSensitivity(level);
     }
 
-    reloadCalibrationProfile(newProfile) {
-        if (this.polyDetector) {
-            this.polyDetector.reloadProfile(newProfile);
+    reloadCalibrationProfile(newProfile, instrument = this.instrument) {
+        const target = instrument === "ukulele" ? this.ukuleleDetector : this.pianoDetector;
+        if (target && typeof target.reloadProfile === "function") {
+            target.reloadProfile(newProfile);
+        }
+    }
+
+    _emitPitchResult(payload) {
+        if (this.onPitch) {
+            this.onPitch(payload);
+        }
+        if (this.onPitchUpdate && this.onPitchUpdate !== this.onPitch) {
+            this.onPitchUpdate(payload);
         }
     }
 
@@ -74,7 +147,8 @@ export class PianoMicrophone {
                 await this.ctx.resume();
             }
 
-            this.polyDetector.setSampleRate(this.ctx.sampleRate);
+            this.pianoDetector.setSampleRate(this.ctx.sampleRate);
+            this.ukuleleDetector.setSampleRate(this.ctx.sampleRate);
             this.polyDetector.resetState();
 
             // Request raw acoustic audio without voice DSP (no echo cancellation, no speech gating, no AGC)
@@ -89,10 +163,10 @@ export class PianoMicrophone {
 
             this.source = this.ctx.createMediaStreamSource(this.stream);
 
-            // Highpass filter at 52Hz (just below 61-key lowest note C2 = 65.41Hz) to eliminate 50Hz hum & desk bumps
+            // Instrument-adaptive highpass filter (52 Hz Piano / 180 Hz High-G Ukulele / 135 Hz Low-G Ukulele)
             this.filter = this.ctx.createBiquadFilter();
             this.filter.type = "highpass";
-            this.filter.frequency.setValueAtTime(52, this.ctx.currentTime);
+            this.filter.frequency.setValueAtTime(this._getTargetHpfHz(), this.ctx.currentTime);
             this.filter.Q.setValueAtTime(0.7, this.ctx.currentTime);
 
             this.source.connect(this.filter);
@@ -168,10 +242,15 @@ export class PianoMicrophone {
 
     _processFrame(frame, precomputedRms = undefined) {
         const expectedMidis = this.getExpectedMidis ? this.getExpectedMidis() : null;
-        const result = this.polyDetector.detect(frame, {
+        const detectContext = {
             rms: precomputedRms,
             expectedMidis
-        });
+        };
+        if (this.instrument === "ukulele") {
+            detectContext.isChordExpected = Array.isArray(expectedMidis) && expectedMidis.length > 1;
+        }
+
+        const result = this.polyDetector.detect(frame, detectContext);
 
         const rms = result.rms || 0;
         const volumePercent = Math.min(100, Math.round(rms * 450));
@@ -180,23 +259,34 @@ export class PianoMicrophone {
         }
 
         if (!result.silence && result.activeNotes && result.activeNotes.length > 0) {
-            if (this.onPitch) {
-                this.onPitch(result);
-            }
-        } else if (this.onPitch) {
-            this.onPitch({
+            this._emitPitchResult({
+                ...result,
+                instrument: this.instrument,
+                volumePercent
+            });
+        } else {
+            this._emitPitchResult({
                 silence: true,
+                instrument: this.instrument,
                 rms,
                 volumePercent,
                 activeNotes: [],
-                onsetNotes: []
+                onsetNotes: [],
+                activeMidis: [],
+                onsetMidis: [],
+                detectedChord: result.detectedChord || null,
+                dominantFreq: result.dominantFreq || null,
+                dominantMidi: result.dominantMidi ?? null,
+                centsOff: result.centsOff ?? null,
+                tunerNote: result.tunerNote || null,
+                strumPending: Boolean(result.strumPending)
             });
         }
     }
 
     stop() {
         this.isListening = false;
-        if (this.animationId) {
+        if (this.animationId && typeof cancelAnimationFrame === "function") {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
@@ -238,6 +328,7 @@ export class PianoMicrophone {
     }
 
     startFallbackLoop() {
+        if (typeof requestAnimationFrame !== "function") return;
         let lastRunMs = 0;
         const analyze = (now) => {
             if (!this.isListening || !this.analyser) return;

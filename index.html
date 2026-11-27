@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Yousician Piano — 61-Key Conservatory &amp; Studio</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23E2E8F0%22 stroke-width=%221.6%22><rect x=%222%22 y=%224%22 width=%2220%22 height=%2216%22 rx=%223%22/><path d=%22M8 4v10M12 4v16M16 4v10M6 14h4M14 14h4%22/></svg>">
+</head>
+<body data-active-view="home">
+
+    <!-- App Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <button id="btnBrandHome" type="button" class="brand brand-btn" title="Return to Conservatory Home">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2.5" y="4" width="19" height="16" rx="2.5"></rect>
+                        <line x1="8.5" y1="4" x2="8.5" y2="13.5"></line>
+                        <line x1="12" y1="4" x2="12" y2="20"></line>
+                        <line x1="15.5" y1="4" x2="15.5" y2="13.5"></line>
+                        <line x1="7" y1="13.5" x2="10" y2="13.5"></line>
+                        <line x1="14" y1="13.5" x2="17" y2="13.5"></line>
+                    </svg>
+                </span>
+                <span class="brand-title">Yousician <span class="brand-title-light">Piano</span></span>
+                <span class="stage-badge" title="Calibrated from your 28 WAV samples for 61-key polyphonic chord &amp; single-note detection (Key #1 C2 to Key #61 C7)">61-Key</span>
+            </button>
+
+            <!-- Minimal Primary View Navigation -->
+            <nav class="view-nav" aria-label="Main Views">
+                <button id="navBtnHome" type="button" class="view-nav-pill active" data-view="home">Home</button>
+                <button id="navBtnLearn" type="button" class="view-nav-pill" data-view="learn">Learn</button>
+                <button id="navBtnSongs" type="button" class="view-nav-pill" data-view="songs">Songs</button>
+                <button id="navBtnStudio" type="button" class="view-nav-pill" data-view="studio">Studio</button>
+            </nav>
+        </div>
+
+        <div class="header-right">
+            <!-- Subtle Gamification Mastery & Streak Pill -->
+            <button id="headerGamificationPill" type="button" class="gamification-header-pill" title="Pianist Mastery Rank, Total XP &amp; Daily Practice Streak">
+                <span class="streak-chip" aria-label="Daily Practice Streak">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 3c.5 3.5 3.5 5.5 3.5 9a3.5 3.5 0 0 1-7 0c0-2 1-3.5 1.8-4.8.5 1.2 1.7 1.8 1.7 1.8S11.4 5.8 12 3z"></path>
+                    </svg>
+                    <span id="headerStreakCount">0d</span>
+                </span>
+                <span class="pill-sep" aria-hidden="true"></span>
+                <span id="headerRankBadge" class="header-rank-name">Initiate</span>
+                <span id="headerXpCount" class="header-xp-val">0 XP</span>
+                <span class="header-xp-mini-track" aria-hidden="true">
+                    <span id="headerXpFill" class="header-xp-mini-fill" style="width: 0%;"></span>
+                </span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==================================================================
+         VIEW 1: MINIMAL HOME PAGE (Default Landing Conservatory View)
+         ================================================================== -->
+    <section id="viewHome" class="app-view view-scroll">
+        <div class="home-shell">
+
+            <!-- Subtle Welcome & Mastery Strip -->
+            <div class="home-mastery-strip">
+                <div class="mastery-rank-block">
+                    <span class="conservatory-eyebrow">61-Key Personal Conservatory · C2–C7</span>
+                    <div class="mastery-rank-row">
+                        <span id="homeRankTitle" class="mastery-rank-title">Initiate</span>
+                        <span id="homeXpLabel" class="mastery-xp-caption">0 / 250 XP to Apprentice</span>
+                    </div>
+                    <div class="mastery-xp-track" aria-label="Rank XP Progress">
+                        <div id="homeXpBarFill" class="mastery-xp-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <div class="mastery-metrics-group">
+                    <div class="mastery-metric">
+                        <span class="metric-label">Daily Streak</span>
+                        <span id="homeStreakValue" class="metric-value">0 days</span>
+                    </div>
+                    <div class="mastery-metric">
+                        <span class="metric-label">Curriculum</span>
+                        <span class="metric-value">
+                            <span id="homeCurriculumPct">0%</span>
+                            <span id="homeCurriculumSub" class="metric-sub">0/0</span>
+                        </span>
+                    </div>
+                    <div class="mastery-metric">
+                        <span class="metric-label">Mastery Stars</span>
+                        <span id="homeTotalStars" class="metric-value metric-champagne">0 ★</span>
+                    </div>
+                </div>
+
+                <div class="mastery-cta-block">
+                    <button id="btnContinueLesson" type="button" class="btn-continue-pill">
+                        <span class="continue-top-row">
+                            <span>Continue Lesson</span>
+                            <span aria-hidden="true">→</span>
+                        </span>
+                        <span id="continueLessonMeta" class="continue-sub-meta">Lv 1 · Lesson 1 · Part 1</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Two Primary Minimal Hero Options: LEARN & SONGS -->
+            <div class="home-hero-grid">
+                <!-- Option 1: Learn (Levels 1–9 Curriculum) -->
+                <button id="heroCardLearn" type="button" class="hero-option-card hero-learn">
+                    <div class="hero-card-top">
+                        <span class="hero-icon-badge badge-champagne" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 6h20M2 10h20M2 14h12M2 18h12"></path>
+                                <circle cx="18" cy="17" r="2.5"></circle>
+                                <path d="M20.5 17V9l2.5 1.5"></path>
+                            </svg>
+                        </span>
+                        <span class="hero-eyebrow">Structured Curriculum · Levels 1–9</span>
+                    </div>
+
+                    <div class="hero-card-body">
+                        <h1 class="hero-title">Learn</h1>
+                        <p class="hero-desc">
+                            Step-by-step conservatory progression from Middle C foundations to chord inversions, Alberti bass, 7th grooves, and two-hand mastery — pairing Solo &amp; Chords in every lesson.
+                        </p>
+                    </div>
+
+                    <div class="hero-card-footer">
+                        <div class="hero-progress-track">
+                            <div id="homeLearnBarFill" class="hero-progress-fill fill-sage" style="width: 0%;"></div>
+                        </div>
+                        <div class="hero-footer-meta">
+                            <span id="homeLearnStats" class="hero-stats-text">Level 1 Active · 0 Parts Completed</span>
+                            <span class="hero-enter-cue">Open Curriculum →</span>
+                        </div>
+                    </div>
+                </button>
+
+                <!-- Option 2: Songs (Headphone Play-Alongs) -->
+                <button id="heroCardSongs" type="button" class="hero-option-card hero-songs">
+                    <div class="hero-card-top">
+                        <span class="hero-icon-badge badge-sage" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                            </svg>
+                        </span>
+                        <span class="hero-eyebrow">Repertoire &amp; Headphone Accompaniment</span>
+                    </div>
+
+                    <div class="hero-card-body">
+                        <h2 class="hero-title">Songs</h2>
+                        <p class="hero-desc">
+                            Full 61-key repertoire and imported arrangements backed by warm stereo headphone accompaniment — toggle Play-Along piano notes ON or OFF while the song band plays on.
+                        </p>
+                    </div>
+
+                    <div class="hero-card-footer">
+                        <div class="hero-progress-track">
+                            <div id="homeSongsBarFill" class="hero-progress-fill fill-champagne" style="width: 0%;"></div>
+                        </div>
+                        <div class="hero-footer-meta">
+                            <span id="homeSongsStats" class="hero-stats-text">0 Songs Mastered · 0 ★ Earned</span>
+                            <span class="hero-enter-cue">Browse Songs →</span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Minimal Quick-Utility Row -->
+            <div class="home-utility-row">
+                <button id="btnHomeOpenStudio" type="button" class="utility-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Open Free Studio</span>
+                </button>
+
+                <button id="btnHomeOpenImport" type="button" class="utility-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Import Sheet / MIDI / MusicXML</span>
+                </button>
+
+                <button id="btnHomeOpenTrainer" type="button" class="utility-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 12h3l2.5-6 4 12 3.5-9 2.5 3H22"></path>
+                    </svg>
+                    <span>61-Key Acoustic Data Trainer</span>
+                    <span id="homeTrainerBadge" class="utility-badge">0/28</span>
+                </button>
+            </div>
+
+            <!-- Quiet Conservatory Milestones Strip -->
+            <div id="homeAchievementsRow" class="home-achievements-strip" aria-label="Milestones">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================================================================
+         VIEW 2: LEARN VIEW (Levels 1–9 Structured Curriculum)
+         ================================================================== -->
+    <section id="viewLearn" class="app-view view-scroll" style="display: none;">
+        <div class="catalog-shell">
+            <div class="catalog-header">
+                <div>
+                    <span class="conservatory-eyebrow">Structured Piano Syllabus · 61 Keys (C2–C7)</span>
+                    <h1 class="catalog-title">Learn Piano · Levels 1–9</h1>
+                    <p class="catalog-subtitle">Every lesson builds Solo melody fluency, Harmonic Chords, and Bimanual Performance with headphone backing tracks.</p>
+                </div>
+                <div class="catalog-header-right">
+                    <span id="learnOverallSummary" class="catalog-summary-pill">0 / 9 Levels · 0 Parts</span>
+                    <button id="btnLearnContinue" type="button" class="btn-ivory-compact">Continue Next Part →</button>
+                </div>
+            </div>
+
+            <!-- Level 1 to Level 9 Selector Rail -->
+            <div id="levelTabsRail" class="level-tabs-rail" role="tablist" aria-label="Curriculum Levels 1 through 9">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Selected Level Overview Banner -->
+            <div class="selected-level-card">
+                <div class="selected-level-main">
+                    <div class="selected-level-heading">
+                        <span id="selectedLevelNumberBadge" class="level-num-pill">Level 1</span>
+                        <h2 id="selectedLevelTitle" class="selected-level-title">Piano Foundations</h2>
+                    </div>
+                    <p id="selectedLevelSubtitle" class="selected-level-sub">Middle C hand position, steady pulse, solo steps, and harmonic intervals.</p>
+                    <div id="selectedLevelTags" class="level-focus-tags">
+                        <!-- Focus tags -->
+                    </div>
+                </div>
+                <div class="selected-level-progress-box">
+                    <span id="selectedLevelStats" class="selected-level-stats">0 / 4 Lessons · 0 ★</span>
+                    <div class="level-progress-bar">
+                        <div id="selectedLevelProgressFill" class="level-progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lessons & Multi-Part List -->
+            <div id="lessonsListContainer" class="lessons-list">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================================================================
+         VIEW 3: SONGS VIEW (Repertoire & Custom Headphone Play-Alongs)
+         ================================================================== -->
+    <section id="viewSongs" class="app-view view-scroll" style="display: none;">
+        <div class="catalog-shell">
+            <div class="catalog-header">
+                <div>
+                    <span class="conservatory-eyebrow">Repertoire Library &amp; Headphone Accompaniment</span>
+                    <h1 class="catalog-title">Song Play-Alongs</h1>
+                    <p class="catalog-subtitle">Play full 61-key arrangements with stereo backing music in your headphones. Toggle guide piano notes anytime in Studio.</p>
+                </div>
+                <div class="catalog-header-right">
+                    <span id="songsOverallSummary" class="catalog-summary-pill">0 Pieces · 0 ★</span>
+                    <button id="btnSongsImport" type="button" class="btn-ivory-compact">+ Import Piece</button>
+                </div>
+            </div>
+
+            <!-- Filter & Search Bar -->
+            <div class="songs-toolbar">
+                <div class="songs-filter-pills" role="group" aria-label="Filter Songs">
+                    <button id="songsFilterAll" type="button" class="filter-pill active" data-filter="all">All</button>
+                    <button id="songsFilterCompleted" type="button" class="filter-pill" data-filter="completed">Completed</button>
+                    <button id="songsFilterInProgress" type="button" class="filter-pill" data-filter="in_progress">In Progress</button>
+                </div>
+
+                <div class="songs-search-wrap">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input id="songsSearchInput" type="search" class="songs-search-input" placeholder="Search title, artist, or key..." aria-label="Search Songs">
+                </div>
+            </div>
+
+            <!-- Songs Grid -->
+            <div id="songsGridContainer" class="songs-grid">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================================================================
+         VIEW 4: STUDIO VIEW (Sub-Bar + 60 FPS Staves + 61-Key Keyboard + 2-Row Deck)
+         ================================================================== -->
+    <div id="viewStudio" class="app-view studio-view" style="display: none;">
+        <!-- Studio Contextual Sub-Bar (Mutually exclusive Curriculum vs Song controls + Acoustic Mic/Tuner) -->
+        <div class="studio-toolbar" role="region" aria-label="Studio Piece and Microphone Controls">
+            <div id="studioHeaderControls" class="studio-toolbar-left">
+                <!-- Curriculum Lesson Breadcrumb (Shown ONLY when practicing a Level 1–9 Lesson Part) -->
+                <div id="studioCurriculumBar" class="studio-curriculum-bar" style="display: none;">
+                    <button id="btnBackToLearn" type="button" class="btn-crumb-nav" title="Return to Curriculum Lessons">
+                        <span>← Learn</span>
+                    </button>
+                    <span id="studioContextLabel" class="studio-context-label">Lv 1 · Lesson 1 · Part 1/3</span>
+                    <button id="btnStudioNextPart" type="button" class="btn-crumb-nav btn-crumb-next" title="Advance to Next Lesson Part">
+                        <span>Next Part →</span>
+                    </button>
+                    <button id="btnStudioFreeMode" type="button" class="btn-crumb-subtle" title="Exit Lesson Mode to Free Studio &amp; Song Library">
+                        <span>Free Mode</span>
+                    </button>
+                </div>
+
+                <!-- Repertoire Song Selector (Shown ONLY in Song Play-Along / Free Studio Mode) -->
+                <div id="studioSongSelectWrap" class="song-selector-wrap">
+                    <span class="selector-label">Piece</span>
+                    <select id="songSelect" class="song-dropdown" aria-label="Select Piece">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Import / Scan Sheet Music Button (Shown ONLY in Song Play-Along / Free Studio Mode) -->
+                <button id="btnOpenImport" type="button" class="btn-import-header" title="Import Sheet Music, MIDI, or MusicXML">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Import</span>
+                </button>
+
+                <!-- Acoustic Data Collection & Sound Calibration Trainer Button -->
+                <button id="btnOpenTrainer" type="button" class="btn-trainer-header" title="Open 61-Key Sound &amp; Data Collection Trainer (Keys #1 C2 to #61 C7)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 12h3l2.5-6 4 12 3.5-9 2.5 3H22"></path>
+                    </svg>
+                    <span>Data Trainer</span>
+                    <span id="trainerProgressBadge" class="trainer-progress-pill">0/28</span>
+                </button>
+            </div>
+
+            <div class="studio-toolbar-right">
+                <!-- Acoustic Piano Microphone Listener & Live Tuner -->
+                <div class="mic-control-bar">
+                    <button id="btnMicToggle" type="button" class="btn-mic" title="Turn On Acoustic Piano Microphone Listening">
+                        <span class="mic-dot"></span>
+                        <svg class="mic-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+                            <path d="M5 10a7 7 0 0 0 14 0"></path>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        <span id="micStatusText">Enable Mic</span>
+                    </button>
+
+                    <div id="tunerDisplay" class="tuner-display" title="Live calibrated polyphonic note &amp; chord detector (AudioWorklet + 61-Key KL-NMF)">
+                        <span id="tunerNote" class="tuner-note">--</span>
+                        <div class="vu-meter">
+                            <div id="vuBar" class="vu-bar"></div>
+                        </div>
+                        <span id="tunerCents" class="tuner-cents">Calibrated</span>
+                    </div>
+
+                    <div class="mic-sens-wrap" title="Microphone Sensitivity / Noise Gate">
+                        <span class="sens-label">Gate</span>
+                        <input id="micSensSlider" type="range" min="1" max="100" value="75" class="sens-slider" aria-label="Microphone Noise Gate">
+                    </div>
+                </div>
+
+                <div id="studioRightHints" class="studio-right-hints">
+                    <div class="finger-legend-pill" title="Finger Color Scheme — Left Hand (L→R): 4 3 2 1 T • Right Hand (L→R): T 1 2 3 4&#10;T = Thumb (Green) • 1 = Index (Yellow) • 2 = Middle (Purple) • 3 = Ring (Blue) • 4 = Pinky (Coral)">
+                        <span class="finger-legend-title">Fingers</span>
+                        <span class="finger-chip chip-thumb">T</span>
+                        <span class="finger-chip chip-index">1</span>
+                        <span class="finger-chip chip-middle">2</span>
+                        <span class="finger-chip chip-ring">3</span>
+                        <span class="finger-chip chip-pinky">4</span>
+                    </div>
+                    <span class="header-shortcuts-hint">
+                        <kbd>Space</kbd> Play <span class="hint-sep">·</span> <kbd>L</kbd><kbd>R</kbd> Hands
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Visual Stage (Canvas) -->
+        <main class="main-stage">
+            <canvas id="yousicianCanvas"></canvas>
+        </main>
+
+        <!-- Interactive On-Screen Piano Keyboard -->
+        <section class="keyboard-section">
+            <div id="pianoKeyboard"></div>
+        </section>
+
+        <!-- Bottom 2-Row Playback & Practice Studio Deck -->
+        <footer class="control-dock">
+            <!-- Top Row: Full-Width Song Timeline Scrubber -->
+            <div class="dock-scrubber-row">
+                <div class="timeline-wrap">
+                    <span id="timeCurrent" class="time-display">00:00</span>
+                    <input id="timelineSlider" type="range" min="0" max="100" value="0" step="0.1" class="timeline-slider" aria-label="Song Timeline">
+                    <span id="timeTotal" class="time-display">00:00</span>
+                </div>
+            </div>
+
+            <!-- Main Row: Transport/Hands (Left), Tempo/Presets (Center), Headphone Audio Split (Right) -->
+            <div class="dock-main-row">
+                <!-- Left: Playback Controls, Mode Switcher & Hand Toggles -->
+                <div class="dock-left">
+                    <button id="btnPlayPause" type="button" class="btn-play" title="Play / Pause (Space)" aria-label="Play or Pause">
+                        <span id="playIcon">▶</span>
+                    </button>
+                    <button id="btnRestart" type="button" class="btn-icon" title="Restart Piece" aria-label="Restart Piece">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                            <line x1="5" y1="19" x2="5" y2="5"></line>
+                        </svg>
+                    </button>
+
+                    <!-- Mode Switcher: Flow vs Wait Mode -->
+                    <div class="mode-switch-group" role="group" aria-label="Practice Mode">
+                        <button id="btnModeFlow" type="button" class="btn-mode active" title="Flow Mode: Continuous tempo with subtle timing cues">Flow</button>
+                        <button id="btnModeWait" type="button" class="btn-mode" title="Wait Mode: Pauses gently at each note or chord until played">Wait</button>
+                    </div>
+
+                    <!-- Hand Practice Toggles: Left Hand (Lower/Bass) & Right Hand (Upper/Treble) -->
+                    <div class="hand-switch-group" role="group" aria-label="Toggle Left and Right Hand Practice">
+                        <button id="btnHandLeft" type="button" class="btn-hand hand-left active" aria-pressed="true" title="Toggle Left Hand / Lower Bass Staff On or Off (Shortcut: L)">
+                            <span class="hand-key-pill">L</span>
+                            <span class="hand-label">Left</span>
+                            <span id="handLeftBadge" class="hand-status-badge">ON</span>
+                        </button>
+                        <button id="btnHandRight" type="button" class="btn-hand hand-right active" aria-pressed="true" title="Toggle Right Hand / Upper Treble Staff On or Off (Shortcut: R)">
+                            <span class="hand-key-pill">R</span>
+                            <span class="hand-label">Right</span>
+                            <span id="handRightBadge" class="hand-status-badge">ON</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Center: Tempo Scaling & Presets -->
+                <div class="dock-center">
+                    <div class="tempo-control-group">
+                        <span class="tempo-label">Tempo</span>
+                        <button id="btnTempoDown" type="button" class="btn-tempo-step" title="Decrease Tempo (-5 BPM)">−5</button>
+                        <span id="tempoReadout" class="tempo-readout">100 BPM</span>
+                        <button id="btnTempoUp" type="button" class="btn-tempo-step" title="Increase Tempo (+5 BPM)">+5</button>
+                        <input id="tempoSlider" type="range" min="25" max="220" value="100" class="tempo-slider" aria-label="Tempo BPM">
+                    </div>
+
+                    <div class="preset-pills">
+                        <button type="button" class="btn-pill" data-mult="0.5">50%</button>
+                        <button type="button" class="btn-pill" data-mult="0.75">75%</button>
+                        <button type="button" class="btn-pill active" data-mult="1.0">100%</button>
+                        <button type="button" class="btn-pill" data-mult="1.25">125%</button>
+                    </div>
+                </div>
+
+                <!-- Right: Play-Along Piano Notes Toggle, Always-On Headphone Backing Band, Metronome & Piano Volume -->
+                <div class="dock-right">
+                    <!-- Dedicated Play-Along Piano Guide Notes Toggle (Song Backing Music continues playing in headphones!) -->
+                    <button id="btnPlayAlongToggle" type="button" class="btn-play-along active" title="Play-Along Piano Notes (ON/OFF): Plays or mutes guide piano notes at the playhead while Song Backing Music continues playing in your headphones">
+                        <span class="play-along-dot"></span>
+                        <span class="play-along-label">Play-Along</span>
+                        <span id="playAlongBadge" class="play-along-badge">ON</span>
+                    </button>
+
+                    <!-- Headphone Background Song Accompaniment Control (Always ON by default) -->
+                    <div class="backing-audio-capsule" title="Headphone Song Backing Music: Stereo harmonic pad, bass &amp; groove that plays continuously even when Play-Along piano notes are OFF">
+                        <button id="btnBackingToggle" type="button" class="btn-backing-toggle active" aria-pressed="true" aria-label="Toggle Headphone Backing Music">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                            </svg>
+                            <span>Backing</span>
+                            <span id="backingBadge" class="backing-badge">ON</span>
+                        </button>
+                        <input id="backingVolumeSlider" type="range" min="0" max="100" value="65" class="backing-slider" title="Headphone Backing Band Level" aria-label="Headphone Backing Music Volume">
+                    </div>
+
+                    <button id="btnMetronome" type="button" class="btn-icon active" title="Metronome Pulse (On/Off)" aria-label="Toggle Metronome">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M7 21h10L14.5 4h-5L7 21z"></path>
+                            <line x1="12" y1="16" x2="18.5" y2="7.5"></line>
+                        </svg>
+                    </button>
+
+                    <div class="volume-wrap" title="Piano Synthesizer Volume">
+                        <svg class="volume-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                            <path d="M18.5 6a8.5 8.5 0 0 1 0 12"></path>
+                        </svg>
+                        <input id="volumeSlider" type="range" min="0" max="100" value="80" class="volume-slider" title="Piano Volume" aria-label="Piano Volume">
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ==================================================================
+         END-OF-PIECE GAMIFIED COMPLETION SUMMARY MODAL
+         ================================================================== -->
+    <div id="completionModal" class="modal-overlay completion-overlay" style="display: none;">
+        <div class="completion-card">
+            <button id="btnCloseCompletion" type="button" class="btn-close-modal completion-close" title="Close Summary" aria-label="Close">✕</button>
+
+            <span id="compEyebrow" class="conservatory-eyebrow">Piece Complete</span>
+            <h2 id="compPieceTitle" class="completion-title">Middle C Warmup</h2>
+
+            <div id="compStarsRow" class="completion-stars-row" aria-label="Stars Earned">
+                <!-- 3 SVG stars rendered dynamically -->
+            </div>
+
+            <div id="compUnlockBanner" class="completion-unlock-banner" style="display: none;">
+                <!-- Shown when a full Lesson, Level, Rank-Up, or Milestone unlocks -->
+            </div>
+
+            <div class="completion-metrics-grid">
+                <div class="comp-metric-box">
+                    <span class="comp-metric-label">Accuracy</span>
+                    <span id="compAccuracyVal" class="comp-metric-val">100%</span>
+                </div>
+                <div class="comp-metric-box">
+                    <span class="comp-metric-label">XP Earned</span>
+                    <span id="compXpVal" class="comp-metric-val val-champagne">+90 XP</span>
+                </div>
+                <div class="comp-metric-box">
+                    <span class="comp-metric-label">Precision</span>
+                    <span id="compTimingVal" class="comp-metric-val val-compact">0 Perfect</span>
+                </div>
+                <div class="comp-metric-box">
+                    <span class="comp-metric-label">Score</span>
+                    <span id="compScoreVal" class="comp-metric-val">0</span>
+                </div>
+            </div>
+
+            <div class="completion-rank-strip">
+                <div class="comp-rank-top">
+                    <span id="compRankLabel" class="comp-rank-name">Initiate</span>
+                    <span id="compRankXpText" class="comp-rank-xp">0 / 250 XP</span>
+                </div>
+                <div class="mastery-xp-track">
+                    <div id="compRankBarFill" class="mastery-xp-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="completion-actions">
+                <button id="btnCompBack" type="button" class="btn-comp-secondary">Back to Learn</button>
+                <button id="btnCompReplay" type="button" class="btn-comp-secondary">Replay</button>
+                <button id="btnCompNextPart" type="button" class="btn-primary-action">Next Part →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sheet Music & Song Ingestion Modal -->
+    <div id="importModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                    </span>
+                    <h2 class="modal-title">Import Score or Piece</h2>
+                </div>
+                <button id="btnCloseModal" type="button" class="btn-close-modal" title="Close Modal" aria-label="Close">✕</button>
+            </div>
+
+            <!-- Modal Navigation Tabs -->
+            <div class="modal-tabs">
+                <button type="button" class="tab-btn active" data-tab="tab-sheet">Sheet Image (AI)</button>
+                <button type="button" class="tab-btn" data-tab="tab-midi">MIDI (.mid)</button>
+                <button type="button" class="tab-btn" data-tab="tab-mxml">MusicXML (.xml)</button>
+                <button type="button" class="tab-btn" data-tab="tab-composer">Quick Composer</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- TAB 1: Sheet Music Image / PDF -->
+                <div id="tab-sheet" class="tab-pane active">
+                    <p class="tab-desc">
+                        Upload an image (PNG, JPG, WebP) of piano sheet music. Gemini Vision transcribes staves, clefs, and notes into an ergonomically fingered 61-key score.
+                    </p>
+
+                    <div class="dropzone" id="sheetDropzone">
+                        <input type="file" id="sheetFileInput" accept="image/*" style="display: none;">
+                        <span class="drop-icon" aria-hidden="true">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </span>
+                        <p class="drop-title">Drop sheet music image here or <span class="drop-browse">browse</span></p>
+                        <p class="drop-hint">Clear photos or clean digital scans of piano staves</p>
+                    </div>
+
+                    <div id="sheetPreviewContainer" style="display: none;" class="sheet-preview-box">
+                        <img id="sheetImagePreview" class="sheet-img-preview" alt="Sheet Music Preview">
+                        <div class="preview-actions">
+                            <span id="sheetFileInfo" class="file-name-tag">sheet.png</span>
+                            <button id="btnRemoveSheet" type="button" class="btn-small-danger">Remove</button>
+                        </div>
+                    </div>
+
+                    <div class="api-key-row">
+                        <label for="geminiApiKeyInput" class="input-label">Gemini API Key (for AI OMR)</label>
+                        <div class="input-group">
+                            <input type="password" id="geminiApiKeyInput" placeholder="Paste Gemini API key" class="text-input">
+                            <button id="btnSaveApiKey" type="button" class="btn-subtle-action">Save</button>
+                        </div>
+                        <span class="hint-text">Or switch to Quick Composer to type note sequences directly without an API key.</span>
+                    </div>
+
+                    <div class="modal-footer-actions">
+                        <button id="btnTranscribeSheet" type="button" class="btn-primary-action" disabled>
+                            Transcribe &amp; Load Score
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 2: MIDI File -->
+                <div id="tab-midi" class="tab-pane">
+                    <p class="tab-desc">
+                        Drop any Standard MIDI File (.mid / .midi). Hands and ergonomic 5-finger colors are partitioned automatically across the 61-key range.
+                    </p>
+
+                    <div class="dropzone" id="midiDropzone">
+                        <input type="file" id="midiFileInput" accept=".mid,.midi,audio/midi" style="display: none;">
+                        <span class="drop-icon" aria-hidden="true">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2.5" y="4" width="19" height="16" rx="2.5"></rect>
+                                <line x1="8.5" y1="4" x2="8.5" y2="13.5"></line>
+                                <line x1="12" y1="4" x2="12" y2="20"></line>
+                                <line x1="15.5" y1="4" x2="15.5" y2="13.5"></line>
+                            </svg>
+                        </span>
+                        <p class="drop-title">Drop MIDI file here or <span class="drop-browse">browse</span></p>
+                        <p class="drop-hint">Exact parsing of notes, chords, and tempo maps</p>
+                    </div>
+
+                    <div id="midiInfoBox" class="info-card" style="display: none;">
+                        <h4 id="midiSongTitle">Song: --</h4>
+                        <div class="info-stats">
+                            <span id="midiNoteCount">Notes: 0</span>
+                            <span id="midiBpm">BPM: 120</span>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer-actions">
+                        <button id="btnImportMidi" type="button" class="btn-primary-action" disabled>
+                            Import &amp; Load Piece
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 3: MusicXML File -->
+                <div id="tab-mxml" class="tab-pane">
+                    <p class="tab-desc">
+                        Upload MusicXML (.musicxml or .xml) exported from MuseScore, Sibelius, Finale, or Dorico.
+                    </p>
+
+                    <div class="dropzone" id="mxmlDropzone">
+                        <input type="file" id="mxmlFileInput" accept=".xml,.musicxml,application/xml" style="display: none;">
+                        <span class="drop-icon" aria-hidden="true">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="9" y1="15" x2="15" y2="15"></line>
+                            </svg>
+                        </span>
+                        <p class="drop-title">Drop MusicXML file here or <span class="drop-browse">browse</span></p>
+                        <p class="drop-hint">Preserves dual staves, measures, key signatures, and fingerings</p>
+                    </div>
+
+                    <div id="mxmlInfoBox" class="info-card" style="display: none;">
+                        <h4 id="mxmlSongTitle">Song: --</h4>
+                        <div class="info-stats">
+                            <span id="mxmlNoteCount">Notes: 0</span>
+                            <span id="mxmlBpm">BPM: 100</span>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer-actions">
+                        <button id="btnImportMxml" type="button" class="btn-primary-action" disabled>
+                            Import &amp; Load Piece
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 4: Quick Composer / Text Editor -->
+                <div id="tab-composer" class="tab-pane">
+                    <p class="tab-desc">
+                        Compose or edit note sequences with clean shorthand notation for custom drills or measure studies.
+                    </p>
+
+                    <div class="composer-grid">
+                        <div class="field-wrap">
+                            <label class="input-label" for="compTitle">Title</label>
+                            <input type="text" id="compTitle" value="My Practice Drill" class="text-input">
+                        </div>
+                        <div class="field-wrap" style="width: 100px; flex: none;">
+                            <label class="input-label" for="compBpm">BPM</label>
+                            <input type="number" id="compBpm" value="100" min="40" max="220" class="text-input">
+                        </div>
+                    </div>
+
+                    <label class="input-label" for="compTextarea">Score Shorthand (NoteOctave:DurationInBeats)</label>
+                    <textarea id="compTextarea" class="composer-textarea" rows="7" spellcheck="false">Treble: B4:1, D5:1 | B4:0.5, B4:0.5, D5:1 | B4:1, D5:1 | D5:1, B4:0.5, B4:0.5
+Bass: B2:0.5, G2:0.5, B2:0.5, D3:1 | A2:1.5, B2:0.5 | B2:1, G2:0.5, B2:0.5 | D3:1, B2:1</textarea>
+
+                    <span class="hint-text">Use <strong>|</strong> for barlines. Notes: C4, D#4, Eb4, G3. Duration: 1 = Quarter, 0.5 = Eighth, 2 = Half.</span>
+
+                    <div class="modal-footer-actions">
+                        <button id="btnBuildFromComposer" type="button" class="btn-primary-action">
+                            Build &amp; Load Piece
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading & Feedback Indicator -->
+                <div id="modalStatus" class="modal-status" style="display: none;">
+                    <div class="spinner"></div>
+                    <span id="modalStatusText">Processing score...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtle Floating Toast Container -->
+    <div id="appToastContainer" class="toast-container" aria-live="polite"></div>
+
+    <!-- Main Module Script -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

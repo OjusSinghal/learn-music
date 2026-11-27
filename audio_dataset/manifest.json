@@ -1,0 +1,931 @@
+{
+  "samples": [
+    {
+      "id": "step_01_silence",
+      "stepIndex": 0,
+      "category": "silence",
+      "categoryLabel": "Ambient Noise",
+      "title": "Ambient Room Silence",
+      "targetNotes": [],
+      "expectedDynamic": "normal",
+      "duration": 2.99,
+      "sampleRate": 48000,
+      "rms": 0.006,
+      "dominantFreq": 0.0,
+      "filename": "step_01_silence.wav",
+      "timestamp": "2026-11-10T12:39:11.145Z",
+      "savedAt": "2026-11-10T12:39:11.145Z",
+      "file_size_bytes": 286764,
+      "saved_at": "2026-11-10T12:39:11Z",
+      "audio_url": "/audio_dataset/samples/step_01_silence.wav",
+      "detectedMidi": null,
+      "detectedNote": "Silence",
+      "detectedKey61": null
+    },
+    {
+      "id": "step_02_c2",
+      "stepIndex": 1,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Lowest Key C2 (Leftmost Key)",
+      "targetNotes": [
+        {
+          "midi": 36,
+          "key61": 1,
+          "name": "C2",
+          "freq": 65.41,
+          "clef": "bass",
+          "whiteKey": 1
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.021,
+      "dominantFreq": 65.8,
+      "filename": "step_02_c2.wav",
+      "timestamp": "2026-11-10T12:40:00.002Z",
+      "savedAt": "2026-11-10T12:40:00.002Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:40:00Z",
+      "audio_url": "/audio_dataset/samples/step_02_c2.wav",
+      "detectedMidi": 36,
+      "detectedNote": "C2",
+      "detectedKey61": 1
+    },
+    {
+      "id": "step_03_g2",
+      "stepIndex": 2,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Low Bass G2",
+      "targetNotes": [
+        {
+          "midi": 43,
+          "key61": 8,
+          "name": "G2",
+          "freq": 98,
+          "clef": "bass",
+          "whiteKey": 5
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.032,
+      "dominantFreq": 98.6,
+      "filename": "step_03_g2.wav",
+      "timestamp": "2026-11-10T12:40:17.144Z",
+      "savedAt": "2026-11-10T12:40:17.144Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:40:17Z",
+      "audio_url": "/audio_dataset/samples/step_03_g2.wav",
+      "detectedMidi": 43,
+      "detectedNote": "G2",
+      "detectedKey61": 8
+    },
+    {
+      "id": "step_04_b2",
+      "stepIndex": 3,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Low Bass B2",
+      "targetNotes": [
+        {
+          "midi": 47,
+          "key61": 12,
+          "name": "B2",
+          "freq": 123.47,
+          "clef": "bass",
+          "whiteKey": 7
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.032,
+      "dominantFreq": 123.4,
+      "filename": "step_04_b2.wav",
+      "timestamp": "2026-11-10T12:40:33.449Z",
+      "savedAt": "2026-11-10T12:40:33.449Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:40:33Z",
+      "audio_url": "/audio_dataset/samples/step_04_b2.wav",
+      "detectedMidi": 47,
+      "detectedNote": "B2",
+      "detectedKey61": 12
+    },
+    {
+      "id": "step_05_c3",
+      "stepIndex": 4,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Tenor Bass C3 (2nd C)",
+      "targetNotes": [
+        {
+          "midi": 48,
+          "key61": 13,
+          "name": "C3",
+          "freq": 130.81,
+          "clef": "bass",
+          "whiteKey": 8
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.022,
+      "dominantFreq": 129.4,
+      "filename": "step_05_c3.wav",
+      "timestamp": "2026-11-10T12:40:46.989Z",
+      "savedAt": "2026-11-10T12:40:46.989Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:40:46Z",
+      "audio_url": "/audio_dataset/samples/step_05_c3.wav",
+      "detectedMidi": 48,
+      "detectedNote": "C3",
+      "detectedKey61": 13
+    },
+    {
+      "id": "step_06_e3",
+      "stepIndex": 5,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Tenor E3",
+      "targetNotes": [
+        {
+          "midi": 52,
+          "key61": 17,
+          "name": "E3",
+          "freq": 164.81,
+          "clef": "bass",
+          "whiteKey": 10
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.021,
+      "dominantFreq": 163.8,
+      "filename": "step_06_e3.wav",
+      "timestamp": "2026-11-10T12:41:04.740Z",
+      "savedAt": "2026-11-10T12:41:04.740Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:41:04Z",
+      "audio_url": "/audio_dataset/samples/step_06_e3.wav",
+      "detectedMidi": 52,
+      "detectedNote": "E3",
+      "detectedKey61": 17
+    },
+    {
+      "id": "step_07_g3",
+      "stepIndex": 6,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Tenor G3",
+      "targetNotes": [
+        {
+          "midi": 55,
+          "key61": 20,
+          "name": "G3",
+          "freq": 196,
+          "clef": "bass",
+          "whiteKey": 12
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.029,
+      "dominantFreq": 195.9,
+      "filename": "step_07_g3.wav",
+      "timestamp": "2026-11-10T12:41:19.640Z",
+      "savedAt": "2026-11-10T12:41:19.640Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:41:19Z",
+      "audio_url": "/audio_dataset/samples/step_07_g3.wav",
+      "detectedMidi": 55,
+      "detectedNote": "G3",
+      "detectedKey61": 20
+    },
+    {
+      "id": "step_08_a3",
+      "stepIndex": 7,
+      "category": "single_bass",
+      "categoryLabel": "Bass (Octaves 1\u20132)",
+      "title": "Tenor A3",
+      "targetNotes": [
+        {
+          "midi": 57,
+          "key61": 22,
+          "name": "A3",
+          "freq": 220,
+          "clef": "bass",
+          "whiteKey": 13
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.035,
+      "dominantFreq": 220.2,
+      "filename": "step_08_a3.wav",
+      "timestamp": "2026-11-10T12:41:36.689Z",
+      "savedAt": "2026-11-10T12:41:36.689Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:41:36Z",
+      "audio_url": "/audio_dataset/samples/step_08_a3.wav",
+      "detectedMidi": 57,
+      "detectedNote": "A3",
+      "detectedKey61": 22
+    },
+    {
+      "id": "step_09_c4",
+      "stepIndex": 8,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Middle C (C4 \u2014 3rd C)",
+      "targetNotes": [
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.026,
+      "dominantFreq": 259.5,
+      "filename": "step_09_c4.wav",
+      "timestamp": "2026-11-10T12:41:48.122Z",
+      "savedAt": "2026-11-10T12:41:48.122Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:41:48Z",
+      "audio_url": "/audio_dataset/samples/step_09_c4.wav",
+      "detectedMidi": 60,
+      "detectedNote": "C4",
+      "detectedKey61": 25
+    },
+    {
+      "id": "step_10_d4",
+      "stepIndex": 9,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble D4",
+      "targetNotes": [
+        {
+          "midi": 62,
+          "key61": 27,
+          "name": "D4",
+          "freq": 293.66,
+          "clef": "treble",
+          "whiteKey": 16
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.051,
+      "dominantFreq": 292.7,
+      "filename": "step_10_d4.wav",
+      "timestamp": "2026-11-10T12:42:00.788Z",
+      "savedAt": "2026-11-10T12:42:00.788Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:00Z",
+      "audio_url": "/audio_dataset/samples/step_10_d4.wav",
+      "detectedMidi": 62,
+      "detectedNote": "D4",
+      "detectedKey61": 27
+    },
+    {
+      "id": "step_11_e4",
+      "stepIndex": 10,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble E4",
+      "targetNotes": [
+        {
+          "midi": 64,
+          "key61": 29,
+          "name": "E4",
+          "freq": 329.63,
+          "clef": "treble",
+          "whiteKey": 17
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.018,
+      "dominantFreq": 333.3,
+      "filename": "step_11_e4.wav",
+      "timestamp": "2026-11-10T12:42:11.622Z",
+      "savedAt": "2026-11-10T12:42:11.622Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:11Z",
+      "audio_url": "/audio_dataset/samples/step_11_e4.wav",
+      "detectedMidi": 64,
+      "detectedNote": "E4",
+      "detectedKey61": 29
+    },
+    {
+      "id": "step_12_f4",
+      "stepIndex": 11,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble F4",
+      "targetNotes": [
+        {
+          "midi": 65,
+          "key61": 30,
+          "name": "F4",
+          "freq": 349.23,
+          "clef": "treble",
+          "whiteKey": 18
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.069,
+      "dominantFreq": 347.8,
+      "filename": "step_12_f4.wav",
+      "timestamp": "2026-11-10T12:42:21.138Z",
+      "savedAt": "2026-11-10T12:42:21.139Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:21Z",
+      "audio_url": "/audio_dataset/samples/step_12_f4.wav",
+      "detectedMidi": 65,
+      "detectedNote": "F4",
+      "detectedKey61": 30
+    },
+    {
+      "id": "step_13_g4",
+      "stepIndex": 12,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble G4",
+      "targetNotes": [
+        {
+          "midi": 67,
+          "key61": 32,
+          "name": "G4",
+          "freq": 392,
+          "clef": "treble",
+          "whiteKey": 19
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.027,
+      "dominantFreq": 390.2,
+      "filename": "step_13_g4.wav",
+      "timestamp": "2026-11-10T12:42:30.472Z",
+      "savedAt": "2026-11-10T12:42:30.473Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:30Z",
+      "audio_url": "/audio_dataset/samples/step_13_g4.wav",
+      "detectedMidi": 67,
+      "detectedNote": "G4",
+      "detectedKey61": 32
+    },
+    {
+      "id": "step_14_a4",
+      "stepIndex": 13,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Concert Pitch A4 (A440)",
+      "targetNotes": [
+        {
+          "midi": 69,
+          "key61": 34,
+          "name": "A4",
+          "freq": 440,
+          "clef": "treble",
+          "whiteKey": 20
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.029,
+      "dominantFreq": 440.4,
+      "filename": "step_14_a4.wav",
+      "timestamp": "2026-11-10T12:42:38.922Z",
+      "savedAt": "2026-11-10T12:42:38.922Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:38Z",
+      "audio_url": "/audio_dataset/samples/step_14_a4.wav",
+      "detectedMidi": 69,
+      "detectedNote": "A4",
+      "detectedKey61": 34
+    },
+    {
+      "id": "step_15_b4",
+      "stepIndex": 14,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble B4",
+      "targetNotes": [
+        {
+          "midi": 71,
+          "key61": 36,
+          "name": "B4",
+          "freq": 493.88,
+          "clef": "treble",
+          "whiteKey": 21
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.056,
+      "dominantFreq": 494.8,
+      "filename": "step_15_b4.wav",
+      "timestamp": "2026-11-10T12:42:48.421Z",
+      "savedAt": "2026-11-10T12:42:48.421Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:42:48Z",
+      "audio_url": "/audio_dataset/samples/step_15_b4.wav",
+      "detectedMidi": 71,
+      "detectedNote": "B4",
+      "detectedKey61": 36
+    },
+    {
+      "id": "step_16_c5",
+      "stepIndex": 15,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble C5 (4th C)",
+      "targetNotes": [
+        {
+          "midi": 72,
+          "key61": 37,
+          "name": "C5",
+          "freq": 523.25,
+          "clef": "treble",
+          "whiteKey": 22
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 1.96,
+      "sampleRate": 48000,
+      "rms": 0.031,
+      "dominantFreq": 527.5,
+      "filename": "step_16_c5.wav",
+      "timestamp": "2026-11-10T12:42:58.221Z",
+      "savedAt": "2026-11-10T12:42:58.221Z",
+      "file_size_bytes": 188460,
+      "saved_at": "2026-11-10T12:42:58Z",
+      "audio_url": "/audio_dataset/samples/step_16_c5.wav",
+      "detectedMidi": 72,
+      "detectedNote": "C5",
+      "detectedKey61": 37
+    },
+    {
+      "id": "step_17_d5",
+      "stepIndex": 16,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Treble D5",
+      "targetNotes": [
+        {
+          "midi": 74,
+          "key61": 39,
+          "name": "D5",
+          "freq": 587.33,
+          "clef": "treble",
+          "whiteKey": 23
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 1.96,
+      "sampleRate": 48000,
+      "rms": 0.066,
+      "dominantFreq": 585.4,
+      "filename": "step_17_d5.wav",
+      "timestamp": "2026-11-10T12:43:07.988Z",
+      "savedAt": "2026-11-10T12:43:07.988Z",
+      "file_size_bytes": 188460,
+      "saved_at": "2026-11-10T12:43:07Z",
+      "audio_url": "/audio_dataset/samples/step_17_d5.wav",
+      "detectedMidi": 74,
+      "detectedNote": "D5",
+      "detectedKey61": 39
+    },
+    {
+      "id": "step_18_g5",
+      "stepIndex": 17,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "High Treble G5",
+      "targetNotes": [
+        {
+          "midi": 79,
+          "key61": 44,
+          "name": "G5",
+          "freq": 783.99,
+          "clef": "treble",
+          "whiteKey": 26
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 1.96,
+      "sampleRate": 48000,
+      "rms": 0.023,
+      "dominantFreq": 786.9,
+      "filename": "step_18_g5.wav",
+      "timestamp": "2026-11-10T12:43:26.172Z",
+      "savedAt": "2026-11-10T12:43:26.172Z",
+      "file_size_bytes": 188460,
+      "saved_at": "2026-11-10T12:43:26Z",
+      "audio_url": "/audio_dataset/samples/step_18_g5.wav",
+      "detectedMidi": 79,
+      "detectedNote": "G5",
+      "detectedKey61": 44
+    },
+    {
+      "id": "step_19_c6",
+      "stepIndex": 18,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "High C6 (5th C)",
+      "targetNotes": [
+        {
+          "midi": 84,
+          "key61": 49,
+          "name": "C6",
+          "freq": 1046.5,
+          "clef": "treble",
+          "whiteKey": 29
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 1.79,
+      "sampleRate": 48000,
+      "rms": 0.014,
+      "dominantFreq": 1046.5,
+      "filename": "step_19_c6.wav",
+      "timestamp": "2026-11-10T12:43:36.052Z",
+      "savedAt": "2026-11-10T12:43:36.052Z",
+      "file_size_bytes": 172076,
+      "saved_at": "2026-11-10T12:43:36Z",
+      "audio_url": "/audio_dataset/samples/step_19_c6.wav",
+      "detectedMidi": 84,
+      "detectedNote": "C6",
+      "detectedKey61": 49
+    },
+    {
+      "id": "step_20_c7",
+      "stepIndex": 19,
+      "category": "single_treble",
+      "categoryLabel": "Treble (Octaves 3\u20135)",
+      "title": "Highest Key C7 (Rightmost Key)",
+      "targetNotes": [
+        {
+          "midi": 96,
+          "key61": 61,
+          "name": "C7",
+          "freq": 2093,
+          "clef": "treble",
+          "whiteKey": 36
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 1.79,
+      "sampleRate": 48000,
+      "rms": 0.012,
+      "dominantFreq": 2087.0,
+      "filename": "step_20_c7.wav",
+      "timestamp": "2026-11-10T12:43:45.471Z",
+      "savedAt": "2026-11-10T12:43:45.471Z",
+      "file_size_bytes": 172076,
+      "saved_at": "2026-11-10T12:43:45Z",
+      "audio_url": "/audio_dataset/samples/step_20_c7.wav",
+      "detectedMidi": 96,
+      "detectedNote": "C7",
+      "detectedKey61": 61
+    },
+    {
+      "id": "step_21_dyn_soft",
+      "stepIndex": 20,
+      "category": "dynamics",
+      "categoryLabel": "Touch Dynamics",
+      "title": "Piano (p) \u2014 Soft Touch",
+      "targetNotes": [
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        }
+      ],
+      "expectedDynamic": "soft",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.028,
+      "dominantFreq": 260.9,
+      "filename": "step_21_dyn_soft.wav",
+      "timestamp": "2026-11-10T12:44:47.654Z",
+      "savedAt": "2026-11-10T12:44:47.654Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:44:47Z",
+      "audio_url": "/audio_dataset/samples/step_21_dyn_soft.wav",
+      "detectedMidi": 60,
+      "detectedNote": "C4",
+      "detectedKey61": 25
+    },
+    {
+      "id": "step_22_dyn_loud",
+      "stepIndex": 21,
+      "category": "dynamics",
+      "categoryLabel": "Touch Dynamics",
+      "title": "Fortissimo (f) \u2014 Hard Touch",
+      "targetNotes": [
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        }
+      ],
+      "expectedDynamic": "loud",
+      "duration": 2.13,
+      "sampleRate": 48000,
+      "rms": 0.029,
+      "dominantFreq": 260.9,
+      "filename": "step_22_dyn_loud.wav",
+      "timestamp": "2026-11-10T12:45:01.653Z",
+      "savedAt": "2026-11-10T12:45:01.654Z",
+      "file_size_bytes": 204844,
+      "saved_at": "2026-11-10T12:45:01Z",
+      "audio_url": "/audio_dataset/samples/step_22_dyn_loud.wav",
+      "detectedMidi": 60,
+      "detectedNote": "C4",
+      "detectedKey61": 25
+    },
+    {
+      "id": "step_23_dyad_octave",
+      "stepIndex": 22,
+      "category": "intervals",
+      "categoryLabel": "Intervals & Dyads",
+      "title": "Octave Dyad: C3 + C4",
+      "targetNotes": [
+        {
+          "midi": 48,
+          "key61": 13,
+          "name": "C3",
+          "freq": 130.81,
+          "clef": "bass",
+          "whiteKey": 8
+        },
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.47,
+      "sampleRate": 48000,
+      "rms": 0.034,
+      "dominantFreq": 129.0,
+      "filename": "step_23_dyad_octave.wav",
+      "timestamp": "2026-11-10T12:45:24.302Z",
+      "savedAt": "2026-11-10T12:45:24.302Z",
+      "file_size_bytes": 237612,
+      "saved_at": "2026-11-10T12:45:24Z",
+      "audio_url": "/audio_dataset/samples/step_23_dyad_octave.wav",
+      "detectedMidi": 48,
+      "detectedNote": "C3",
+      "detectedKey61": 13
+    },
+    {
+      "id": "step_24_dyad_fifth",
+      "stepIndex": 23,
+      "category": "intervals",
+      "categoryLabel": "Intervals & Dyads",
+      "title": "Perfect Fifth: C4 + G4",
+      "targetNotes": [
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        },
+        {
+          "midi": 67,
+          "key61": 32,
+          "name": "G4",
+          "freq": 392,
+          "clef": "treble",
+          "whiteKey": 19
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.47,
+      "sampleRate": 48000,
+      "rms": 0.037,
+      "dominantFreq": 130.4,
+      "filename": "step_24_dyad_fifth.wav",
+      "timestamp": "2026-11-10T12:45:42.019Z",
+      "savedAt": "2026-11-10T12:45:42.019Z",
+      "file_size_bytes": 237612,
+      "saved_at": "2026-11-10T12:45:42Z",
+      "audio_url": "/audio_dataset/samples/step_24_dyad_fifth.wav",
+      "detectedMidi": 48,
+      "detectedNote": "C3",
+      "detectedKey61": 13
+    },
+    {
+      "id": "step_25_chord_c_maj",
+      "stepIndex": 24,
+      "category": "chords",
+      "categoryLabel": "Chords (Polyphony)",
+      "title": "C Major Triad (C4 - E4 - G4)",
+      "targetNotes": [
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble",
+          "whiteKey": 15
+        },
+        {
+          "midi": 64,
+          "key61": 29,
+          "name": "E4",
+          "freq": 329.63,
+          "clef": "treble",
+          "whiteKey": 17
+        },
+        {
+          "midi": 67,
+          "key61": 32,
+          "name": "G4",
+          "freq": 392,
+          "clef": "treble",
+          "whiteKey": 19
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.47,
+      "sampleRate": 48000,
+      "rms": 0.04,
+      "dominantFreq": 65.5,
+      "filename": "step_25_chord_c_maj.wav",
+      "timestamp": "2026-11-10T12:46:03.285Z",
+      "savedAt": "2026-11-10T12:46:03.285Z",
+      "file_size_bytes": 237612,
+      "saved_at": "2026-11-10T12:46:03Z",
+      "audio_url": "/audio_dataset/samples/step_25_chord_c_maj.wav",
+      "detectedMidi": 36,
+      "detectedNote": "C2",
+      "detectedKey61": 1
+    },
+    {
+      "id": "step_26_chord_g_maj",
+      "stepIndex": 25,
+      "category": "chords",
+      "categoryLabel": "Chords (Polyphony)",
+      "title": "G Major Triad (G3 - B3 - D4)",
+      "targetNotes": [
+        {
+          "midi": 55,
+          "key61": 20,
+          "name": "G3",
+          "freq": 196,
+          "clef": "bass",
+          "whiteKey": 12
+        },
+        {
+          "midi": 59,
+          "key61": 24,
+          "name": "B3",
+          "freq": 246.94,
+          "clef": "bass",
+          "whiteKey": 14
+        },
+        {
+          "midi": 62,
+          "key61": 27,
+          "name": "D4",
+          "freq": 293.66,
+          "clef": "treble",
+          "whiteKey": 16
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.47,
+      "sampleRate": 48000,
+      "rms": 0.067,
+      "dominantFreq": 98.2,
+      "filename": "step_26_chord_g_maj.wav",
+      "timestamp": "2026-11-10T12:46:23.920Z",
+      "savedAt": "2026-11-10T12:46:23.920Z",
+      "file_size_bytes": 237612,
+      "saved_at": "2026-11-10T12:46:23Z",
+      "audio_url": "/audio_dataset/samples/step_26_chord_g_maj.wav",
+      "detectedMidi": 43,
+      "detectedNote": "G2",
+      "detectedKey61": 8
+    },
+    {
+      "id": "step_27_chord_a_min",
+      "stepIndex": 26,
+      "category": "chords",
+      "categoryLabel": "Chords (Polyphony)",
+      "title": "A Minor Triad (A3 - C4 - E4)",
+      "targetNotes": [
+        {
+          "midi": 57,
+          "key61": 22,
+          "name": "A3",
+          "freq": 220,
+          "clef": "bass"
+        },
+        {
+          "midi": 60,
+          "key61": 25,
+          "name": "C4",
+          "freq": 261.63,
+          "clef": "treble"
+        },
+        {
+          "midi": 64,
+          "key61": 29,
+          "name": "E4",
+          "freq": 329.63,
+          "clef": "treble"
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.47,
+      "sampleRate": 48000,
+      "rms": 0.054,
+      "dominantFreq": 82.4,
+      "filename": "step_27_chord_a_min.wav",
+      "timestamp": "2026-11-11T13:40:29.515Z",
+      "savedAt": "2026-11-11T13:40:29.516Z",
+      "file_size_bytes": 237612,
+      "saved_at": "2026-11-11T13:40:29Z",
+      "audio_url": "/audio_dataset/samples/step_27_chord_a_min.wav",
+      "detectedMidi": 40,
+      "detectedNote": "E2",
+      "detectedKey61": 5
+    },
+    {
+      "id": "step_28_playalong_yousician",
+      "stepIndex": 27,
+      "category": "playalong",
+      "categoryLabel": "Play-Along Motif",
+      "title": "Yousician Groove Measure 1",
+      "targetNotes": [
+        {
+          "midi": 47,
+          "key61": 12,
+          "name": "B2",
+          "freq": 123.47,
+          "clef": "bass"
+        },
+        {
+          "midi": 71,
+          "key61": 36,
+          "name": "B4",
+          "freq": 493.88,
+          "clef": "treble"
+        }
+      ],
+      "expectedDynamic": "normal",
+      "duration": 2.99,
+      "sampleRate": 48000,
+      "rms": 0.047,
+      "dominantFreq": 123.5,
+      "filename": "step_28_playalong_yousician.wav",
+      "timestamp": "2026-11-11T13:41:11.580Z",
+      "savedAt": "2026-11-11T13:41:11.580Z",
+      "file_size_bytes": 286764,
+      "saved_at": "2026-11-11T13:41:11Z",
+      "audio_url": "/audio_dataset/samples/step_28_playalong_yousician.wav",
+      "detectedMidi": 47,
+      "detectedNote": "B2",
+      "detectedKey61": 12
+    }
+  ],
+  "updated_at": "2026-11-11T13:41:11Z"
+}

@@ -1,0 +1,365 @@
+{
+  "id": "imported_happy_birthday",
+  "title": "Happy Birthday (Imported)",
+  "artist": "Traditional",
+  "bpm": 105,
+  "beatsPerMeasure": 3,
+  "timeSignature": [
+    3,
+    4
+  ],
+  "keySignature": "C",
+  "chords": [
+    "",
+    "C",
+    "G",
+    "G7",
+    "C",
+    "C",
+    "F",
+    "G7",
+    "C"
+  ],
+  "notes": [
+    {
+      "pitch": 67,
+      "time": 1.1429,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 67,
+      "time": 1.4286,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 48,
+      "time": 1.7143,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 69,
+      "time": 1.7143,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 67,
+      "time": 2.2857,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 72,
+      "time": 2.8571,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 4,
+      "fingerLabel": "3",
+      "fingerColor": "#4090F8"
+    },
+    {
+      "pitch": 55,
+      "time": 3.4286,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 71,
+      "time": 3.4286,
+      "duration": 1.1179,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 3,
+      "fingerLabel": "2",
+      "fingerColor": "#6848F8"
+    },
+    {
+      "pitch": 67,
+      "time": 4.5714,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 67,
+      "time": 4.8571,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 50,
+      "time": 5.1429,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 4,
+      "fingerLabel": "3",
+      "fingerColor": "#4090F8"
+    },
+    {
+      "pitch": 69,
+      "time": 5.1429,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 67,
+      "time": 5.7143,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 74,
+      "time": 6.2857,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 48,
+      "time": 6.8571,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 72,
+      "time": 6.8571,
+      "duration": 1.1179,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 4,
+      "fingerLabel": "3",
+      "fingerColor": "#4090F8"
+    },
+    {
+      "pitch": 67,
+      "time": 8,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 67,
+      "time": 8.2857,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 52,
+      "time": 8.5714,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 3,
+      "fingerLabel": "2",
+      "fingerColor": "#6848F8"
+    },
+    {
+      "pitch": 79,
+      "time": 8.5714,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 76,
+      "time": 9.1429,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 3,
+      "fingerLabel": "2",
+      "fingerColor": "#6848F8"
+    },
+    {
+      "pitch": 72,
+      "time": 9.7143,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 53,
+      "time": 10.2857,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 71,
+      "time": 10.2857,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 69,
+      "time": 10.8571,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 77,
+      "time": 11.4286,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 77,
+      "time": 11.7143,
+      "duration": 0.2607,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 55,
+      "time": 12,
+      "duration": 1.1179,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 1,
+      "fingerLabel": "T",
+      "fingerColor": "#48A870"
+    },
+    {
+      "pitch": 76,
+      "time": 12,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 4,
+      "fingerLabel": "3",
+      "fingerColor": "#4090F8"
+    },
+    {
+      "pitch": 72,
+      "time": 12.5714,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 43,
+      "time": 13.1429,
+      "duration": 0.5464,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 5,
+      "fingerLabel": "4",
+      "fingerColor": "#E86078"
+    },
+    {
+      "pitch": 74,
+      "time": 13.1429,
+      "duration": 0.5464,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 3,
+      "fingerLabel": "2",
+      "fingerColor": "#6848F8"
+    },
+    {
+      "pitch": 48,
+      "time": 13.7143,
+      "duration": 1.6893,
+      "clef": "bass",
+      "hand": "left",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    },
+    {
+      "pitch": 72,
+      "time": 13.7143,
+      "duration": 1.6893,
+      "clef": "treble",
+      "hand": "right",
+      "finger": 2,
+      "fingerLabel": "1",
+      "fingerColor": "#F0C830"
+    }
+  ]
+}

@@ -264,7 +264,7 @@ piano-app/
 │   └── UKULELE_ACOUSTIC_RESEARCH.md  # Ukulele nylon physics, 7-stage DSP & 28-step protocol
 │
 ├── agent-skills/
-│   └── yousician-piano-app/          # Repo mirror of ~/.gemini/config/skills/yousician-piano-app/
+│   └── learn-music/                  # Repo mirror of ~/.gemini/config/skills/learn-music/
 │       ├── SKILL.md                  # Antigravity/Jetski development & calibration skill
 │       ├── references/               # Architecture, schemas, DSP & calibration deep dives
 │       └── scripts/verify_piano_app.sh # Permanent 5-stage Piano + Ukulele verification suite
@@ -368,23 +368,23 @@ python3 /Users/ojus/official/piano-app/scripts/calibrate_ukulele.py
 
 ## 13. Antigravity Global Skill & Living Documentation Policy
 
-A dedicated Antigravity/Jetski development skill for maintaining, calibrating, and extending this application is maintained in **two byte-identical synchronized locations**:
-- **Global Jetski Skill**: `~/.gemini/config/skills/yousician-piano-app/`
-- **Repository Mirror (committed & pushed alongside all app changes)**: [`agent-skills/yousician-piano-app/`](./agent-skills/yousician-piano-app/) (`SKILL.md`, `references/architecture-and-formats.md`, `references/dsp-and-calibration.md`, `scripts/verify_piano_app.sh`).
+A dedicated Antigravity/Jetski development skill (`learn-music`) for maintaining, calibrating, and extending this application is maintained in **two byte-identical synchronized locations**:
+- **Global Jetski Skill**: `~/.gemini/config/skills/learn-music/`
+- **Repository Mirror (committed & pushed alongside all app changes)**: [`agent-skills/learn-music/`](./agent-skills/learn-music/) (`SKILL.md`, `references/architecture-and-formats.md`, `references/dsp-and-calibration.md`, `scripts/verify_piano_app.sh`).
 
 Sync the repo mirror after any skill update with:
 ```bash
 rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' \
-  ~/.gemini/config/skills/yousician-piano-app/ \
-  /Users/ojus/official/piano-app/agent-skills/yousician-piano-app/
+  ~/.gemini/config/skills/learn-music/ \
+  /Users/ojus/official/piano-app/agent-skills/learn-music/
 ```
 
 ### Automated 5-Stage Verification Suite (`verify_piano_app.sh`)
 Validates Python compilation (`server.py`, `calibrate_and_benchmark.py`, `calibrate_ukulele.py`), `ThreadingTCPServer(q=128)`, zero harsh red/alert invariants across all `38` files, `163/163` DOM ID bindings, `.app-header`/`.studio-toolbar`/2-row `.control-dock` layout, all **`36` ES modules** + Studio sub-bar mutual exclusion in JavaScriptCore, `6/6` Piano WAV fixtures, all **`116` Piano pieces (`8,525` notes)**, all **`8` Ukulele-arranged songs + `108` Ukulele curriculum parts (`9,090` notes)**, `UkulelePolyphonicDetector` single-note/tuner/strum DSP, Piano↔Ukulele hot-swap + unison `F` chord + headphone split, dual `ProgressManager` isolation, concurrent `:8080` HTTP routes (incl. `/api/dataset/ukulele/summary`), and **`README.md` + Global Skill + Repo `agent-skills/` byte-for-byte mirror sync**:
 ```bash
-bash ~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh
+bash ~/.gemini/config/skills/learn-music/scripts/verify_piano_app.sh
 # Or directly from the repo mirror:
-bash /Users/ojus/official/piano-app/agent-skills/yousician-piano-app/scripts/verify_piano_app.sh
+bash /Users/ojus/official/piano-app/agent-skills/learn-music/scripts/verify_piano_app.sh
 ```
 
 ---

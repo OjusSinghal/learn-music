@@ -1,11 +1,11 @@
 ---
-name: yousician-piano-app
+name: learn-music
 description: >-
-  Develops, calibrates, debugs, and extends the Yousician Piano & Ukulele
-  conservatory & play-along web application at /Users/ojus/official/piano-app.
-  Activate this skill whenever the user asks to work on the piano or ukulele app,
-  Piano | Ukulele switching, Minimal Home / Learn / Songs / Studio views, the
-  Levels 1-9 structured Piano & Ukulele curricula (chords & solo play), universal
+  Develops, calibrates, debugs, and extends the Learn Music (Yousician Piano &
+  Ukulele conservatory & play-along) web application at /Users/ojus/official/piano-app.
+  Activate this skill whenever the user asks to work on Learn Music, the piano or
+  ukulele app, Piano | Ukulele switching, Minimal Home / Learn / Songs / Studio views,
+  the Levels 1-9 structured Piano & Ukulele curricula (chords & solo play), universal
   UkuleleArranger, 4-string scrolling tab canvas & 4x12 interactive fretboard,
   stereo headphone backing music vs Play-Along toggle, gamification/progress
   tracking, acoustic pitch/chord/strum detection, 61-key piano or 28-step ukulele
@@ -13,7 +13,7 @@ description: >-
   3D 61-key keyboard, Data Trainer, or MIDI, MusicXML, and Gemini OMR sheet music.
 ---
 
-# Yousician Piano & Ukulele App (Conservatory & Headphone Play-Along Edition) Skill
+# Learn Music — Piano & Ukulele Conservatory Skill
 
 ## Project Location & Runtime Constraints
 
@@ -58,13 +58,13 @@ description: >-
 8. **Mandatory `README.md`, Global Jetski Skill & Repo `agent-skills/` Mirror Synchronization (ALWAYS ENFORCE)**:
    - Every time you make ANY change to `/Users/ojus/official/piano-app` (or to the skill itself), you **MUST** keep **all three** synchronized in the same turn and commit/push them together:
      1. `/Users/ojus/official/piano-app/README.md`
-     2. **Global Jetski Skill**: `~/.gemini/config/skills/yousician-piano-app/` (`SKILL.md`, `references/*`, `scripts/verify_piano_app.sh`)
-     3. **Repo Skill Mirror**: `/Users/ojus/official/piano-app/agent-skills/yousician-piano-app/` — MUST remain **100% byte-for-byte identical** to `~/.gemini/config/skills/yousician-piano-app/` (excluding `.DS_Store` / `__pycache__`, preserving `+x` on `scripts/verify_piano_app.sh`) and **MUST always be committed and pushed alongside any other app commits** to `git@github.com:OjusSinghal/learn-music.git`.
+     2. **Global Jetski Skill**: `~/.gemini/config/skills/learn-music/` (`SKILL.md`, `references/*`, `scripts/verify_piano_app.sh`)
+     3. **Repo Skill Mirror**: `/Users/ojus/official/piano-app/agent-skills/learn-music/` — MUST remain **100% byte-for-byte identical** to `~/.gemini/config/skills/learn-music/` (excluding `.DS_Store` / `__pycache__`, preserving `+x` on `scripts/verify_piano_app.sh`) and **MUST always be committed and pushed alongside any other app commits** to `git@github.com:OjusSinghal/learn-music.git`.
    - Mirror cleanly with:
      ```bash
      rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' \
-       ~/.gemini/config/skills/yousician-piano-app/ \
-       /Users/ojus/official/piano-app/agent-skills/yousician-piano-app/
+       ~/.gemini/config/skills/learn-music/ \
+       /Users/ojus/official/piano-app/agent-skills/learn-music/
      ```
 
 ---
@@ -75,7 +75,7 @@ description: >-
 Run the permanent 5-stage verification suite covering Python syntax (`server.py`, `calibrate_and_benchmark.py`, `calibrate_ukulele.py`), `ThreadingTCPServer(q=128)`, static aesthetic/DOM/layout invariants (`163/163` DOM IDs, zero harsh reds/alerts across `38` files), all `36` ES modules in `jsc`, `6/6` Piano WAV fixtures, all `116` Piano pieces (`8,525` notes), all `8` Ukulele-arranged songs + `108` Ukulele curriculum parts (`9,090` notes), `UkulelePolyphonicDetector` DSP/tuner/strum test, Piano↔Ukulele hot-swap + unison `F` chord + headphone split, dual `ProgressManager` isolation, concurrent `:8080` HTTP routes, and doc freshness:
 
 ```bash
-bash ~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh
+bash ~/.gemini/config/skills/learn-music/scripts/verify_piano_app.sh
 ```
 
 ### 2. Calibrating & Benchmarking Polyphonic Note Detection (Piano & Ukulele)
@@ -105,16 +105,16 @@ Read [Architecture, Schemas & API Reference](./references/architecture-and-forma
 
 ## Mandatory Definition of Done (Run Before Completing Any Task)
 1. **Update `README.md`**: Keep `/Users/ojus/official/piano-app/README.md` fully synchronized with every architectural, UI, curriculum, DSP, or API change.
-2. **Update Global Jetski Skill**: Keep `~/.gemini/config/skills/yousician-piano-app/` (`SKILL.md`, `references/*.md`, and `scripts/verify_piano_app.sh`) synchronized.
-3. **Sync Repo `agent-skills/` Mirror**: Mirror the global skill byte-for-byte into `/Users/ojus/official/piano-app/agent-skills/yousician-piano-app/`:
+2. **Update Global Jetski Skill**: Keep `~/.gemini/config/skills/learn-music/` (`SKILL.md`, `references/*.md`, and `scripts/verify_piano_app.sh`) synchronized.
+3. **Sync Repo `agent-skills/` Mirror**: Mirror the global skill byte-for-byte into `/Users/ojus/official/piano-app/agent-skills/learn-music/`:
    ```bash
    rsync -a --delete --exclude='.DS_Store' --exclude='__pycache__' \
-     ~/.gemini/config/skills/yousician-piano-app/ \
-     /Users/ojus/official/piano-app/agent-skills/yousician-piano-app/
+     ~/.gemini/config/skills/learn-music/ \
+     /Users/ojus/official/piano-app/agent-skills/learn-music/
    ```
-   Verify zero diff (`diff -rq ~/.gemini/config/skills/yousician-piano-app /Users/ojus/official/piano-app/agent-skills/yousician-piano-app`).
-4. **Code, Mirror & Regression Check**: Run `bash ~/.gemini/config/skills/yousician-piano-app/scripts/verify_piano_app.sh` (or `bash /Users/ojus/official/piano-app/agent-skills/yousician-piano-app/scripts/verify_piano_app.sh`) and ensure **100% (5/5 stages)** pass.
-5. **Commit & Push Together**: Whenever committing and pushing changes in `/Users/ojus/official/piano-app` to `git@github.com:OjusSinghal/learn-music.git`, **always include `agent-skills/yousician-piano-app/`** (and `README.md`) alongside the app changes so the repository's skill copy never drifts from the global Jetski skill.
+   Verify zero diff (`diff -rq ~/.gemini/config/skills/learn-music /Users/ojus/official/piano-app/agent-skills/learn-music`).
+4. **Code, Mirror & Regression Check**: Run `bash ~/.gemini/config/skills/learn-music/scripts/verify_piano_app.sh` (or `bash /Users/ojus/official/piano-app/agent-skills/learn-music/scripts/verify_piano_app.sh`) and ensure **100% (5/5 stages)** pass.
+5. **Commit & Push Together**: Whenever committing and pushing changes in `/Users/ojus/official/piano-app` to `git@github.com:OjusSinghal/learn-music.git`, **always include `agent-skills/learn-music/`** (and `README.md`) alongside the app changes so the repository's skill copy never drifts from the global Jetski skill.
 
 ---
 

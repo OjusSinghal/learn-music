@@ -2,8 +2,8 @@
 set -euo pipefail
 
 APP_DIR="/Users/ojus/official/piano-app"
-SKILL_DIR="${HOME}/.gemini/config/skills/yousician-piano-app"
-REPO_SKILL_DIR="$APP_DIR/agent-skills/yousician-piano-app"
+SKILL_DIR="${HOME}/.gemini/config/skills/learn-music"
+REPO_SKILL_DIR="$APP_DIR/agent-skills/learn-music"
 JSC="/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -1474,12 +1474,12 @@ if newest_code_mtime - readme_mtime > 2.0:
     )
 if newest_code_mtime - newest_skill_mtime > 2.0:
     errors.append(
-        f"Global skill docs (~/.gemini/config/skills/yousician-piano-app/) are older than "
+        f"Global skill docs (~/.gemini/config/skills/learn-music/) are older than "
         f"modified source file '{newest_code.relative_to(app_dir)}'. "
         f"Update SKILL.md and/or references/*.md to reflect your changes."
     )
 
-# Verify byte-for-byte mirror between ~/.gemini/config/skills/yousician-piano-app and repo agent-skills/yousician-piano-app
+# Verify byte-for-byte mirror between ~/.gemini/config/skills/learn-music and repo agent-skills/learn-music
 IGNORED_NAMES = {".DS_Store", "__pycache__"}
 
 def collect_tree(root: Path):
@@ -1536,8 +1536,8 @@ if errors:
     sys.exit(1)
 
 print(
-    f"PASS: README.md, global skill (~/.gemini/config/skills/yousician-piano-app/), "
-    f"and repo mirror (agent-skills/yousician-piano-app/, {len(repo_files)} files byte-identical) are in sync."
+    f"PASS: README.md, global skill (~/.gemini/config/skills/learn-music/), "
+    f"and repo mirror (agent-skills/learn-music/, {len(repo_files)} files byte-identical) are in sync."
 )
 PYEOF
 
